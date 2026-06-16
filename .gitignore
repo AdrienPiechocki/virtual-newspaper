@@ -163,3 +163,4 @@ cython_debug/
 jobs/
 steam_*.json
 *.db
+*.pdf
