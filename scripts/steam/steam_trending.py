@@ -9,7 +9,6 @@ import html
 import argparse
 import csv
 import json
-import scripts.utils.translator as translator
 from pathlib import Path
 import scripts.steam.scrape_steam_tags as scrape_steam_tags
 import dateparser
@@ -65,9 +64,6 @@ def parse_args():
 
     parser.add_argument("--output", "-o", metavar="FILE.csv",
         help="Export results to a CSV file (both sections)")
-
-    parser.add_argument("--lang", "-l", default="en", metavar="CC",
-        help="Language code for Steam descriptions (e.g., fr, en, de)")
 
     parser.add_argument("--quiet", "-q", action="store_true",
         help="Show only the final ranking")
@@ -126,28 +122,6 @@ def cache_set(conn, cursor, appid, data):
 # ----------------------------
 # REQUÊTES
 # ----------------------------
-
-def normalize_lang(lang):
-    mapping = {
-        "en": "en-US",
-        "fr": "fr-FR",
-        "de": "de-DE",
-        "es": "es-ES",
-        "it": "it-IT",
-        "pt": "pt-BR",
-        "ru": "ru-RU",
-        "zh": "zh-CN",
-        "ja": "ja-JP",
-        "ko": "ko-KR",
-    }
-    return mapping.get(lang, lang)
-
-def build_headers(lang):
-    return {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
-        "Accept-Language": f"{lang},{lang};q=0.9,en;q=0.8"
-    }
-
 
 def safe_get(url, params=None, retries=3, headers=None):
     for i in range(retries):
@@ -293,11 +267,11 @@ def get_appids(filters, pages, rate_min, rate_max, quiet, tag_map, tag_names, he
     return list(appids), rankings
 
 
-def get_details(appid, conn, cursor, lang, rate_min, rate_max, no_cache, headers):
+def get_details(appid, conn, cursor, rate_min, rate_max, no_cache, headers):
     cached = cache_get(cursor, appid, no_cache)
     if cached:
         return cached
-    r = safe_get(STEAM_APP_DETAILS, params={"appids": appid, "l": lang}, headers=headers)
+    r = safe_get(STEAM_APP_DETAILS, params={"appids": appid, "l": "en"}, headers=headers)
     if not r:
         return None
     try:
@@ -398,7 +372,6 @@ def print_section(title, items, quiet):
         desc = g.get("description")
         if not isinstance(desc, str):
             desc = ""
-        clean_desc = html.unescape(desc)
         tags_line = f"      🏷️  {g['tags']}\n" if g.get("tags") else ""
         score_label = "Presale" if g["coming_soon"] else "Score"
         extra = ""
@@ -409,7 +382,7 @@ def print_section(title, items, quiet):
             f"      {score_label} : {g['score']}  |  Release : {g['release']}\n"
             f"{tags_line}"
             f"{extra}"
-            f"      📝 {clean_desc}\n"
+            f"      📝 {desc}\n"
         )
 
 
@@ -438,8 +411,10 @@ def presale_breakdown(appid, rankings):
 def main():
     args = parse_args()
 
-    lang = normalize_lang(args.lang)
-    headers = build_headers(lang)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9,en;q=0.8"
+    }
 
     tag_list = load_tags(Path("steam_tags.json").expanduser().resolve())
     tag_map = build_tag_map(tag_list)
@@ -452,7 +427,7 @@ def main():
     if not args.quiet:
         print("🎮 SteamDB Trending Engine\n")
         print(f"  Window   : {args.days} jours | Top releases : {args.top} | Top upcoming : {args.top_upcoming}")
-        print(f"  Filters   : {', '.join(args.filters)} | Pages/filter : {args.pages} | Language : {args.lang}")
+        print(f"  Filters   : {', '.join(args.filters)} | Pages/filter : {args.pages}")
         if args.tags_include:
             print(f"  🏷️  Required tags : {', '.join(args.tags_include)}")
         if args.tags_exclude:
@@ -491,7 +466,6 @@ def main():
             appid,
             conn,
             cursor,
-            args.lang,
             args.rate_min,
             args.rate_max,
             args.no_cache,
@@ -536,11 +510,9 @@ def main():
                     print(f"  ✗ {name} — excluded tags")
                 continue
         
-        desc = translator.translate_stream(
-            [details.get("short_description", "")],
-            args.lang
-        )
-
+        # Directly get raw description
+        desc = details.get("short_description", "")
+        clean_desc = html.unescape(desc)
         entry = {
             "name": name,
             "appid": appid,
@@ -548,7 +520,7 @@ def main():
             "recommendations": pos,
             "coming_soon": is_coming_soon,
             "tags": tags_display(details),
-            "description": desc,
+            "description": clean_desc,
         }
 
         if is_coming_soon:

@@ -5,8 +5,5 @@ httpx
 pyyaml
 beautifulsoup4
 numpy
-nltk
-scikit-learn
-argostranslate
-langdetect
 networkx
+reportlab
