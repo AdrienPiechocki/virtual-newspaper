@@ -28,15 +28,50 @@ def load_rss_articles(path: Path) -> list[dict]:
 
 
 def load_steam_games(path: Path) -> dict[str, list[dict]]:
+    """
+    steam_trending.py exporte désormais un CSV avec 4 valeurs possibles pour
+    "section" : released, upcoming, demos, sales.
+
+    - "released"  = jeux déjà sortis et tendance (-> "En vogue sur Steam")
+    - "upcoming"  = jeux pas encore sortis ; release vaut soit une date
+      réelle (YYYY-MM-DD) soit la chaîne littérale "Upcoming".
+    - "demos"     = démos jouables ; score/price toujours vides (gratuit).
+    - "sales"     = jeux actuellement en promotion. Pour l'instant ce sont
+      des DOUBLONS des jeux "released" (même appid, même prix, pas encore
+      de % de réduction ni de prix barré dans le CSV). On les utilise donc
+      seulement pour marquer ces jeux comme "en promo" dans la liste
+      released, plutôt que de les afficher une seconde fois.
+      Quand le script exportera un vrai discount_percent, on pourra
+      ré-afficher "sales" comme bloc à part avec le pourcentage.
+
+    Les sections sont déjà triées par score décroissant par le script ;
+    on ne retrie pas pour respecter ce classement.
+    """
     rows = _read_csv(path)
-    trending = [r for r in rows if r.get("section") == "trending"]
+    released = [r for r in rows if r.get("section") == "released"]
     upcoming = [r for r in rows if r.get("section") == "upcoming"]
-    return {"trending": trending, "upcoming": upcoming}
+    demos = [r for r in rows if r.get("section") == "demos"]
+    sales = [r for r in rows if r.get("section") == "sales"]
+
+    sale_appids = {r["appid"] for r in sales if r.get("appid")}
+    for r in released:
+        r["on_sale"] = r.get("appid") in sale_appids
+
+    return {"trending": released, "upcoming": upcoming, "demos": demos, "sales": sales}
 
 
 def load_linkedin_jobs(path: Path) -> list[dict]:
+    """
+    linkedin_scraper.py exporte un CSV avec les colonnes :
+    score, title, company, location, work_type, date_posted,
+    search_keyword, skills_found, job_id, url, description
+
+    Déjà trié par score décroissant à l'export, mais on retrie ici
+    par sécurité (le score reflète le matching avec les compétences
+    recherchées dans la config).
+    """
     rows = _read_csv(path)
-    rows.sort(key=lambda r: r.get("posted_date", ""), reverse=True)
+    rows.sort(key=lambda r: float(r.get("score", 0) or 0), reverse=True)
     return rows
 
 

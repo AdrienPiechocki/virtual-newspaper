@@ -51,10 +51,24 @@ def domain_only(url: str) -> str:
     return netloc.removeprefix("www.")
 
 
+def first_tags(tags_str: str, max_tags: int = 4) -> str:
+    """
+    Les tags Steam mélangent genres et fonctionnalités d'accessibilité
+    (ex: 'Aventure, Indépendant, Option souris uniquement, ...') et peuvent
+    dépasser 20 entrées pour un même jeu. On n'en garde que les premiers
+    pour rester lisible dans la mise en page journal.
+    """
+    if not tags_str:
+        return ""
+    parts = [t.strip() for t in tags_str.split(",") if t.strip()]
+    return ", ".join(parts[:max_tags])
+
+
 def build_html(data: dict, masthead: str) -> str:
     env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
     env.filters["truncate_words"] = truncate_words
     env.filters["domain_only"] = domain_only
+    env.filters["first_tags"] = first_tags
     template = env.get_template("newspaper.html.j2")
     css_content = (TEMPLATE_DIR / "newspaper.css").read_text(encoding="utf-8")
 

@@ -78,39 +78,51 @@ body {
 .weather-strip { margin-bottom: 2mm; }
 
 .weather-grid {
-    display: flex;
-    gap: 6mm;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4mm;
 }
 
 .weather-card {
-    flex: 1;
     border: 1px solid #1a1a1a;
-    padding: 3mm;
+    padding: 3mm 2mm;
     text-align: center;
+    break-inside: avoid;
 }
 
 .weather-city {
     font-weight: bold;
-    font-size: 11pt;
+    font-size: 8.5pt;
     text-transform: uppercase;
-    margin-bottom: 1mm;
+    margin-bottom: 1.5mm;
+    line-height: 1.2;
+    word-spacing: normal;
+    hyphens: none;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .weather-temp {
-    font-size: 16pt;
+    font-size: 13pt;
     font-weight: bold;
 }
 
 .weather-condition {
     font-style: italic;
     color: #333;
+    font-size: 8.5pt;
     margin: 1mm 0;
+    hyphens: none;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .weather-detail {
-    font-size: 8.5pt;
+    font-size: 7.5pt;
     color: #555;
+    hyphens: none;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .weather-narrative {

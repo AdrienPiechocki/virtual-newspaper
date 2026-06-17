@@ -64,7 +64,7 @@
 {% endif %}
 
 <!-- ===================== JEUX STEAM ===================== -->
-{% if steam_games.trending or steam_games.upcoming %}
+{% if steam_games.trending or steam_games.upcoming or steam_games.demos %}
 <section class="steam">
     <h2 class="section-label">Le coin du jeu vidéo</h2>
     <div class="steam-columns">
@@ -74,11 +74,11 @@
             {% for g in steam_games.trending %}
             <div class="game-entry">
                 <div class="game-entry-header">
-                    <span class="game-name">{{ g.name }}</span>
-                    <span class="game-price">{{ g.price }}</span>
+                    <span class="game-name">{{ g.name }}{% if g.on_sale %} <span class="badge-sale">PROMO</span>{% endif %}</span>
+                    {% if g.price %}<span class="game-price">{{ g.price }}</span>{% endif %}
                 </div>
-                <div class="game-desc">{{ g.short_description }}</div>
-                <div class="game-tags">{{ g.tags }}</div>
+                <div class="game-desc">{{ g.description | truncate_words(45) }}</div>
+                {% if g.tags %}<div class="game-tags">{{ g.tags | first_tags(4) }}</div>{% endif %}
             </div>
             {% endfor %}
         </div>
@@ -90,10 +90,23 @@
             <div class="game-entry">
                 <div class="game-entry-header">
                     <span class="game-name">{{ g.name }}</span>
-                    <span class="game-price">{{ g.price }}</span>
+                    {% if g.price %}<span class="game-price">{{ g.price }}</span>{% endif %}
                 </div>
-                <div class="game-desc">{{ g.short_description }}</div>
-                <div class="game-meta">Sortie prévue : {{ g.release_date }}</div>
+                <div class="game-desc">{{ g.description | truncate_words(45) }}</div>
+                {% if g.release and g.release != "Upcoming" %}
+                <div class="game-meta">Sortie prévue : {{ g.release }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if steam_games.demos %}
+        <div class="steam-block">
+            <h3 class="steam-subtitle">Démos à essayer</h3>
+            {% for g in steam_games.demos %}
+            <div class="game-entry game-entry-compact">
+                <span class="game-name">{{ g.name }}</span>
+                <div class="game-desc">{{ g.description | truncate_words(28) }}</div>
             </div>
             {% endfor %}
         </div>
@@ -113,7 +126,7 @@
                 <th>Poste</th>
                 <th>Entreprise</th>
                 <th>Lieu</th>
-                <th>Contrat</th>
+                <th>Télétravail</th>
                 <th>Compétences</th>
             </tr>
         </thead>
@@ -123,8 +136,8 @@
                 <td class="job-title">{{ j.title }}</td>
                 <td>{{ j.company }}</td>
                 <td>{{ j.location }}</td>
-                <td>{{ j.contract_type }}</td>
-                <td class="job-skills">{{ j.matched_skills }}</td>
+                <td>{{ j.work_type if j.work_type else "—" }}</td>
+                <td class="job-skills">{{ j.skills_found }}</td>
             </tr>
             {% endfor %}
         </tbody>

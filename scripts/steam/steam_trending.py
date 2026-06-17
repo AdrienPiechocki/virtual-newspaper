@@ -1,8 +1,10 @@
 import requests
 import re
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
 import math
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 import sqlite3
 import html
@@ -15,6 +17,23 @@ import dateparser
 
 STEAM_SEARCH = "https://store.steampowered.com/search/results/"
 STEAM_APP_DETAILS = "https://store.steampowered.com/api/appdetails"
+STEAM_EVENTS = "https://partner.steamgames.com/doc/marketing/upcoming_events"
+STEAM_DEMOS = "https://store.steampowered.com/sale/nextfest?tab=23&flavor=trendingwishlisted"
+
+EVENT_KEYWORDS = {
+    "next fest": "Next Fest",
+    "spring sale": "Spring Sale",
+    "summer sale": "Summer Sale",
+    "autumn sale": "Autumn Sale",
+    "fall sale": "Autumn Sale",
+    "winter sale": "Winter Sale",
+}
+
+MONTHS = r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+
+date_pattern = re.compile(
+    rf"({MONTHS}\s+\d{{1,2}}(?:,\s*\d{{4}})?)\s*[-–]\s*({MONTHS}\s+\d{{1,2}},\s*\d{{4}})"
+)
 
 # ----------------------------
 # ARGS
@@ -123,6 +142,78 @@ def cache_set(conn, cursor, appid, data):
 # REQUÊTES
 # ----------------------------
 
+def get_sale_games():
+    appids = []
+
+    params = {
+        "specials": 1,
+        "ndl": 1,
+        "infinite": 1
+    }
+
+    r = safe_get(STEAM_SEARCH, params=params)
+
+    if not r:
+        return []
+
+    html_block = r.json().get("results_html", "")
+    found = re.findall(r'data-ds-appid="(\d+)"', html_block)
+
+    return found
+
+def get_demos(url: str = STEAM_DEMOS):
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+
+        page.goto(url, wait_until="networkidle")
+
+        # scroll pour charger davantage de jeux
+        previous = 0
+        while True:
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(1500)
+
+            current = page.locator("a[href*='/app/']").count()
+            if current == previous:
+                break
+            previous = current
+
+        html = page.content()
+        browser.close()
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    appids = []
+    demo_appids = []
+    for card in soup.select(".gASJ2lL_xmVNuZkWGvrWg"):
+        a = card.find("a", href=re.compile(r"/app/\d+"))
+        if not a:
+            continue
+
+        m = re.search(r"/app/(\d+)", a["href"])
+        if m:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
+                "Accept-Language": "fr-FR,fr;q=0.9,fr;q=0.8"
+            }
+            r = safe_get(STEAM_APP_DETAILS, params={"appids": m.group(1), "l": "fr"}, headers=headers)
+            if not r:
+                continue
+            try:
+                data = r.json().get(str(m.group(1)), {})
+                if not data.get("success"):
+                    continue
+                result = data.get("data", {}).get("demos", {})[0].get("appid")
+                throttle(0.6, 1.8)
+                demo_appids.append(result)
+                appids.append(m.group(1))
+            except Exception:
+                continue
+
+    return appids, demo_appids
+
 def safe_get(url, params=None, retries=3, headers=None):
     for i in range(retries):
         try:
@@ -146,17 +237,89 @@ def throttle(rate_min, rate_max):
 # UTIL
 # ----------------------------
 
+def parse_event_date(s, default_year=None):
+    s = s.strip()
+    try:
+        if "," not in s and default_year:
+            s = f"{s}, {default_year}"
+        return datetime.strptime(s, "%B %d, %Y").replace(tzinfo=timezone.utc)
+    except:
+        return None
+
 def log(x):
     return math.log(max(x, 1))
 
 
-def parse_date(s):
+def parse_release_date(s):
     if not s:
         return None
     try:
         return dateparser.parse(s)
     except (ValueError, TypeError):
         return None
+
+# ----------------------------
+# EVENTS
+# ----------------------------
+
+def extract_events(html):
+    soup = BeautifulSoup(html, "html.parser")
+
+    events = []
+
+    # On cherche des blocs logiques (titres + contenu proche)
+    for element in soup.find_all(["h2", "h3", "strong", "p", "li"]):
+        text = element.get_text(" ", strip=True).lower()
+
+        event_name = None
+        for key, name in EVENT_KEYWORDS.items():
+            if key in text:
+                event_name = name
+                break
+
+        if not event_name:
+            continue
+
+        # On regarde le texte proche (parent container)
+        container_text = element.parent.get_text(" ", strip=True)
+
+        match = date_pattern.search(container_text)
+        if not match:
+            continue
+
+        start_raw, end_raw = match.group(1), match.group(3)
+
+        # année fallback (Steam met souvent l'année dans la fin)
+        year_match = re.search(r"\d{4}", end_raw)
+        year = int(year_match.group()) if year_match else None
+
+        start = parse_event_date(start_raw, year)
+        end = parse_event_date(end_raw)
+
+        if start and end:
+            events.append((event_name, start, end))
+
+    return events
+
+
+def get_active_events(headers):
+    r = requests.get(STEAM_EVENTS, headers=headers)
+    r.raise_for_status()
+
+    events = extract_events(r.text)
+
+    now = datetime.now(timezone.utc)
+
+    active = [
+        name for (name, start, end) in events
+        if start <= now <= end
+    ]
+
+    if active:
+        for e in active:
+            return e
+
+    return None
 
 # ----------------------------
 # TAGS
@@ -373,13 +536,12 @@ def print_section(title, items, quiet):
         if not isinstance(desc, str):
             desc = ""
         tags_line = f"      🏷️  {g['tags']}\n" if g.get("tags") else ""
-        score_label = "Presale" if g["coming_soon"] else "Score"
         extra = ""
         if g["coming_soon"] and g.get("presale_breakdown"):
             extra = f"      📊 {g['presale_breakdown']}\n"
         print(
             f"{i:3d}. {g['name']}\n"
-            f"      {score_label} : {g['score']}  |  Release : {g['release']}\n"
+            f"      Release : {g['release']}\n"
             f"{tags_line}"
             f"{extra}"
             f"      📝 {desc}\n"
@@ -453,12 +615,38 @@ def main():
         args.tags_include,
         headers
     )
+    active_event = get_active_events({"User-Agent": "Mozilla/5.0"})
+    if active_event:
+        match active_event:
+            case "Next Fest":
+                print("\nSteam Next Fest is LIVE! adding demos...\n")
+                demo_games, demo_demos = get_demos()
+                for demo in demo_demos:
+                    appids.append(demo)
+                demo_index = 0
+            case "Spring Sale":
+                print("\nSteam Spring Sale is LIVE! adding sales...\n")
+                appids.extend(get_sale_games())
+            case "Summer Sale":
+                print("\nSteam Summer Sale is LIVE! adding sales...\n")
+                appids.extend(get_sale_games())
+            case "Autumn Sale":
+                print("\nSteam Autumn Sale is LIVE! adding sales...\n")
+                appids.extend(get_sale_games())
+            case "Winter Sale":
+                print("\nSteam Winter Sale is LIVE! adding sales...\n")
+                appids.extend(get_sale_games())
+    else:
+        print("\nNo Steam event right now\n")
+    
     if not args.quiet:
         print(f"\n✅ {len(appids)} games collected\n")
         print("\nWriting to database and generating lists (this can take a few moments)...\n")
 
     released = []
     upcoming = []
+    demos = []
+    sales = []
     cutoff = datetime.now() - timedelta(days=args.days)
 
     for appid in appids:
@@ -474,33 +662,40 @@ def main():
 
         if not details:
             continue
-        if details.get("type") != "game":
-            continue
 
         name = details.get("name")
         if not name:
             continue
         
-        price = details.get("price_overview", {}).get("initial_formatted", "")
-        release = parse_date(details.get("release_date", {}).get("date", ""))
+        price_overview = details.get("price_overview", {})
+        discount = price_overview.get("discount_percent", 0)
+        price = price_overview.get("final_formatted", "")
+        release = parse_release_date(details.get("release_date", {}).get("date", ""))
         is_coming_soon = details.get("release_date", {}).get("coming_soon", False)
 
-        if is_coming_soon:
-            if release and release < cutoff:
-                continue
-        else:
-            if release and release < cutoff:
+        if active_event in (
+            "Spring Sale",
+            "Summer Sale",
+            "Autumn Sale",
+            "Winter Sale"
+        ):
+            if discount <= 0:
                 continue
 
-        is_free = details.get("is_free")
-        has_price = details.get("price_overview")
-        if not is_coming_soon and not is_free and not has_price:
+        if details.get("type") == "demo":
+            pass
+        elif is_coming_soon:
+            if release and release < cutoff:
+                continue
+        elif release and release < cutoff:
+                continue
+        elif details.get("type") != "demo" and details.get("type") != "game":
             continue
 
         pos = details.get("recommendations", {}).get("total", 0)
         neg = 0
 
-        if not is_coming_soon and pos < args.min_reviews:
+        if not is_coming_soon and details.get("type") != "demo" and pos < args.min_reviews:
             continue
 
         tags = extract_tags(details)
@@ -526,7 +721,25 @@ def main():
             "price": price
         }
 
-        if is_coming_soon:
+        if details.get("type") == "demo":
+            _details = get_details(
+                demo_games[demo_index],
+                conn,
+                cursor,
+                args.rate_min,
+                args.rate_max,
+                args.no_cache,
+                headers
+            )
+            _desc = _details.get("short_description", "")
+            _desc = html.unescape(_desc)
+            entry["description"] = _desc
+            demos.append(entry)
+            demo_index += 1
+            if args.verbose:
+                print(f"  🔜 {name} (demo)")
+        
+        elif is_coming_soon:
             entry["score"] = upcoming_presale_score(
                 appid,
                 rankings,
@@ -551,6 +764,12 @@ def main():
             released.append(entry)
             if args.verbose:
                 print(f"  ✓ {name} (score={entry['score']}, reviews={pos})")
+        
+        if discount > 0:
+            entry["discount"] = discount
+            sales.append(entry)
+            if args.verbose:
+                print(f"  ✓ {name} (sales)")
 
     # ----------------------------
     # CLASSEMENT
@@ -582,6 +801,16 @@ def main():
     else:
         print("\n  (No coming soon game found)\n")
 
+    if demos:
+        print_section("DEMOS", demos, args.quiet)
+    else:
+        print("\n  (No game demos found)\n")
+    
+    if sales:
+        print_section("💸 SALES", sales, args.quiet)
+    else:
+        print("\n  (No game sales found)\n")
+
     # ----------------------------
     # EXPORT CSV
     # ----------------------------
@@ -589,7 +818,9 @@ def main():
     if args.output:
         all_results = (
             [{**g, "section": "released"} for g in top_released] +
-            [{**g, "section": "upcoming"} for g in top_upcoming]
+            [{**g, "section": "upcoming"} for g in top_upcoming] +
+            [{**g, "section": "demos"} for g in demos] +
+            [{**g, "section": "sales"} for g in sales]
         )
         fieldnames = ["section", "name", "appid", "release", "score",
                       "recommendations", "coming_soon", "tags", "description", "price"]
