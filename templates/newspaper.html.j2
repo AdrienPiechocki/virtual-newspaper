@@ -180,7 +180,6 @@
                 <th>Poste</th>
                 <th>Entreprise</th>
                 <th>Lieu</th>
-                <th>Télétravail</th>
                 <th>Compétences</th>
             </tr>
         </thead>
@@ -190,7 +189,6 @@
                 <td class="job-title"><a href={{ j.url }}>{{ j.title }}</a></td>
                 <td>{{ j.company }}</td>
                 <td>{{ j.location }}</td>
-                <td>{{ j.work_type if j.work_type else "—" }}</td>
                 <td class="job-skills">{{ j.skills_found }}</td>
             </tr>
             {% endfor %}
