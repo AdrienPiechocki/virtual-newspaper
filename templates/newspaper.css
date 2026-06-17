@@ -1,0 +1,253 @@
+/* ============ Page & polices ============ */
+@page {
+    size: A3;
+    margin: 14mm 12mm;
+    @bottom-center {
+        content: counter(page);
+        font-family: Georgia, serif;
+        font-size: 9pt;
+        color: #444;
+    }
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: Georgia, "Times New Roman", serif;
+    color: #1a1a1a;
+    margin: 0;
+    font-size: 10.5pt;
+    line-height: 1.42;
+}
+
+/* ============ Masthead ============ */
+.masthead-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8.5pt;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #333;
+    border-bottom: 1px solid #1a1a1a;
+    padding-bottom: 3mm;
+}
+
+.masthead-title {
+    text-align: center;
+    font-family: "Georgia", serif;
+    font-weight: 900;
+    font-size: 52pt;
+    letter-spacing: 2px;
+    margin: 4mm 0 1mm 0;
+    text-transform: uppercase;
+}
+
+.masthead-sub {
+    text-align: center;
+    font-size: 9.5pt;
+    font-style: italic;
+    color: #444;
+    margin-bottom: 3mm;
+}
+
+.rule-thick {
+    border-top: 3px solid #1a1a1a;
+    border-bottom: 1px solid #1a1a1a;
+    height: 2px;
+    margin-bottom: 4mm;
+}
+
+.rule-thin {
+    border-top: 1px solid #1a1a1a;
+    margin: 5mm 0;
+}
+
+/* ============ Labels de section ============ */
+.section-label {
+    font-family: Georgia, serif;
+    font-weight: bold;
+    font-size: 15pt;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-bottom: 2px solid #1a1a1a;
+    padding-bottom: 2mm;
+    margin-bottom: 4mm;
+}
+
+/* ============ Météo ============ */
+.weather-strip { margin-bottom: 2mm; }
+
+.weather-grid {
+    display: flex;
+    gap: 6mm;
+    justify-content: space-between;
+}
+
+.weather-card {
+    flex: 1;
+    border: 1px solid #1a1a1a;
+    padding: 3mm;
+    text-align: center;
+}
+
+.weather-city {
+    font-weight: bold;
+    font-size: 11pt;
+    text-transform: uppercase;
+    margin-bottom: 1mm;
+}
+
+.weather-temp {
+    font-size: 16pt;
+    font-weight: bold;
+}
+
+.weather-condition {
+    font-style: italic;
+    color: #333;
+    margin: 1mm 0;
+}
+
+.weather-detail {
+    font-size: 8.5pt;
+    color: #555;
+}
+
+.weather-narrative {
+    margin-top: 3mm;
+    font-style: italic;
+    text-align: justify;
+    border-left: 3px solid #1a1a1a;
+    padding-left: 3mm;
+}
+
+/* ============ Articles en colonnes ============ */
+.article-columns {
+    column-count: 3;
+    column-gap: 8mm;
+    column-rule: 1px solid #ccc;
+}
+
+.article {
+    break-inside: avoid;
+    margin-bottom: 5mm;
+}
+
+.article-category {
+    display: inline-block;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #1a1a1a;
+    color: #fff;
+    padding: 0.5mm 2mm;
+    margin-bottom: 1.5mm;
+}
+
+.article-title {
+    font-size: 12.5pt;
+    font-weight: bold;
+    line-height: 1.25;
+    margin: 0 0 2mm 0;
+}
+
+.article-lead .article-title {
+    font-size: 16pt;
+}
+
+.article-summary {
+    text-align: justify;
+    margin: 0 0 1.5mm 0;
+    hyphens: auto;
+}
+
+.article-lead .article-summary::first-letter {
+    font-size: 18pt;
+    font-weight: bold;
+}
+
+.article-meta {
+    font-size: 8pt;
+    color: #555;
+    font-style: italic;
+}
+
+/* ============ Steam / jeux vidéo ============ */
+.steam-columns {
+    display: flex;
+    gap: 8mm;
+}
+
+.steam-block { flex: 1; }
+
+.steam-subtitle {
+    font-size: 12pt;
+    font-weight: bold;
+    border-bottom: 1px solid #1a1a1a;
+    padding-bottom: 1.5mm;
+    margin-bottom: 3mm;
+}
+
+.game-entry {
+    margin-bottom: 4mm;
+    break-inside: avoid;
+}
+
+.game-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.game-name {
+    font-weight: bold;
+    font-size: 11pt;
+}
+
+.game-price {
+    font-weight: bold;
+}
+
+.game-desc {
+    text-align: justify;
+    margin: 1mm 0;
+}
+
+.game-tags, .game-meta {
+    font-size: 8pt;
+    font-style: italic;
+    color: #555;
+}
+
+/* ============ Offres d'emploi ============ */
+.jobs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+}
+
+.jobs-table th {
+    text-align: left;
+    text-transform: uppercase;
+    font-size: 8pt;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #1a1a1a;
+    padding: 2mm 2mm 1.5mm 0;
+}
+
+.jobs-table td {
+    border-bottom: 1px solid #ccc;
+    padding: 2mm 2mm 2mm 0;
+    vertical-align: top;
+}
+
+.job-title { font-weight: bold; }
+.job-skills { font-style: italic; color: #444; }
+
+/* ============ Footer ============ */
+.newspaper-footer {
+    margin-top: 6mm;
+    text-align: center;
+    font-size: 8pt;
+    color: #555;
+}

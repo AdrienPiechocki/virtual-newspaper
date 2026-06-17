@@ -12,7 +12,6 @@ Usage:
 
 import argparse
 import csv
-import json
 import logging
 import random
 import re
@@ -375,7 +374,7 @@ def export_results(jobs: list[Job], config: dict, output_dir: Path) -> list[Job]
         reverse=True,
     )
 
-    csv_path = output_dir / output_cfg.get("csv_file", "jobs_output.csv")
+    csv_path = output_dir / output_cfg.get("csv_file", "linkedin_jobs.csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "score", "title", "company", "location", "work_type",
@@ -389,11 +388,6 @@ def export_results(jobs: list[Job], config: dict, output_dir: Path) -> list[Job]
             writer.writerow(row)
     log.info(f"📄 CSV: {csv_path}  ({len(filtered)} offres)")
 
-    json_path = output_dir / output_cfg.get("json_file", "jobs_output.json")
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump([asdict(j) for j in filtered], f, ensure_ascii=False, indent=2)
-    log.info(f"📄 JSON: {json_path}")
-
     return filtered
 
 
@@ -402,7 +396,7 @@ def main():
     parser = argparse.ArgumentParser(description="LinkedIn Job Scraper (sans login)")
     parser.add_argument("--config", default="scripts/linkedin/linkedin_config.yaml")
     parser.add_argument("--debug", action="store_true", help="Sauvegarde le HTML brut de la 1ère page")
-    parser.add_argument("--output", default="jobs", help="Dossier de sortie")
+    parser.add_argument("--output", default="data", help="Dossier de sortie")
     args = parser.parse_args()
 
     config = load_config(args.config)

@@ -7,3 +7,5 @@ beautifulsoup4
 numpy
 networkx
 reportlab
+weasyprint
+jinja2

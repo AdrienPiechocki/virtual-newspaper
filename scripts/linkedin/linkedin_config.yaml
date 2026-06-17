@@ -58,8 +58,7 @@ bonus_skills:
 
 # Sortie
 output:
-  csv_file: "jobs_output.csv"
-  json_file: "jobs_output.json"
+  csv_file: "linkedin_jobs.csv"
   # Ne garder que les offres avec score >= min_score (0 = toutes)
   min_score: 0
 

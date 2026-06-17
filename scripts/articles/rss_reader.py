@@ -14,6 +14,17 @@ from scripts.articles.article_scraper import fetch_article
 import re
 from bs4 import BeautifulSoup
 
+from difflib import SequenceMatcher
+
+def is_too_similar(new_title: str, seen_titles: list[str], threshold: float = 0.8) -> bool:
+    """Vérifie si le titre est trop similaire à un titre déjà vu."""
+    for seen in seen_titles:
+        # Calcule le ratio de similarité (0.0 à 1.0)
+        similarity = SequenceMatcher(None, new_title.lower(), seen.lower()).ratio()
+        if similarity >= threshold:
+            return True
+    return False
+
 def is_code_heavy_article(html: str) -> bool:
     if not html:
         return False
@@ -50,24 +61,6 @@ def fetch_html(url: str) -> str:
 
     with urllib.request.urlopen(req, timeout=10) as resp:
         return resp.read().decode("utf-8", errors="replace")
-
-def is_too_sparse_text(text: str) -> bool:
-    if not text:
-        return True
-
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
-    
-    if len(lines) < 15:
-        return True
-
-    # check number of words per line
-    too_short_lines = sum(len(line.split()) < 5 for line in lines)
-
-    # if too many lines are weak, we reject
-    if too_short_lines > len(lines)/2:
-        return True
-
-    return False
 
 def fetch_rss(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -107,66 +100,83 @@ def parse_feed(xml_text: str) -> list[dict]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Reads an RSS feed and displays article content.")
-    parser.add_argument("rss_url", help="RSS feed URL")
-    parser.add_argument("--limit", type=int, default=10, help="Maximum number of articles to process")
-    parser.add_argument("--scrape", action="store_true", help="Scrape the articles")
-    parser.add_argument("--csv", metavar="FILE", help="Export results to a CSV file")
+    parser = argparse.ArgumentParser(description="Reads multiple RSS feeds and displays article content.")
+    # On change rss_url en rss_urls avec nargs='+'
+    parser.add_argument("rss_urls", nargs='+', help="List of RSS feed URLs")
+    parser.add_argument("--limit", type=int, default=10, help="Maximum number of articles per feed")
+    parser.add_argument("--scrape", action="store_true", help="DO NOT scrape the articles")
+    parser.add_argument("--csv", default="data/rss_articles.csv", metavar="FILE", help="Export results to a CSV file")
     args = parser.parse_args()
 
-    print(f"Fetching feed: {args.rss_url}", file=sys.stderr)
-    xml_text = fetch_rss(args.rss_url)
-    items = parse_feed(xml_text)
+    seen_titles = []
 
-    if not items:
-        print("No articles found in the feed.", file=sys.stderr)
-        sys.exit(1)
-
-    if args.limit:
-        items = items[: args.limit]
-
-    print(f"{len(items)} article(s) found.\n", file=sys.stderr)
-
-    csv_writer = None
+    # Initialisation du fichier CSV
     csv_file = None
+    csv_writer = None
     if args.csv:
         csv_file = open(args.csv, "w", newline="", encoding="utf-8")
         csv_writer = csv.writer(csv_file, quoting=csv.QUOTE_ALL)
-        csv_writer.writerow(["title", "url", "body"])
+        csv_writer.writerow(["feed_url", "title", "url", "body"]) # Ajout de la colonne feed_url pour s'y retrouver
 
     try:
-        for i, item in enumerate(items, 1):
-            print(f"{'='*60}")
-            print(f"[{i}/{len(items)}] {item['title']}")
-            print(f"URL: {item['url']}")
-            print(f"{'='*60}")
+        # Boucle sur chaque URL fournie
+        for rss_url in args.rss_urls:
+            print(f"\n{'#'*20}\nFetching feed: {rss_url}\n{'#'*20}", file=sys.stderr)
+            
+            try:
+                xml_text = fetch_rss(rss_url)
+                items = parse_feed(xml_text)
+            except Exception as e:
+                print(f"Failed to fetch feed {rss_url}: {e}", file=sys.stderr)
+                continue
 
-            content = ""
-            if args.scrape:
-                try:
-                    html = fetch_html(item["url"])
-                    
-                    if is_code_heavy_article(html):
-                        print("(article skipped: code-oriented content)", file=sys.stderr)
-                        continue
+            if not items:
+                print("No articles found in this feed.", file=sys.stderr)
+                continue
 
-                    content = fetch_article(item["url"]) or ""
-                    if is_too_sparse_text(content):
-                        print("(article skipped: content too short or sparse)", file=sys.stderr)
-                        continue
-                    if "Participer au live" in content:
-                        print("(article skipped: live event)", file=sys.stderr)
-                        continue
-                    if content:
-                        print(content)
-                    else:
-                        print("(content not extracted)")
-                except Exception as e:
-                    print(f"Error during scraping: {e}", file=sys.stderr)
-                print()
+            if args.limit:
+                items = items[:args.limit]
 
-            if csv_writer:
-                csv_writer.writerow([item["title"], item["url"], content])
+            for item in items:
+                # Vérification de la similarité
+                if is_too_similar(item['title'], seen_titles):
+                    print(f"Skipping duplicate: {item['title']}", file=sys.stderr)
+                    continue
+
+            # Traitement des articles du flux actuel
+            for i, item in enumerate(items, 1):
+                print(f"{'='*60}")
+                print(f"[{i}/{len(items)}] {item['title']}")
+                print(f"URL: {item['url']}")
+                print(f"{'='*60}")
+
+                content = ""
+                if not args.scrape:
+                    try:
+                        html = fetch_html(item["url"])
+                        
+                        if is_code_heavy_article(html):
+                            print("(article skipped: code-oriented content)", file=sys.stderr)
+                            continue
+
+                        content = fetch_article(item["url"]) or ""
+                        if "Participer au live" in content or "EN DIRECT" in item['title'] or "Plus d’informations à venir" in content:
+                            print("(article skipped: live event)", file=sys.stderr)
+                            continue
+                        if "réservée aux abonnés" in content:
+                            print("(article skipped: abonnement requis)", file=sys.stderr)
+                            continue
+                        if content:
+                            print(content)
+                            seen_titles.append(item['title'])
+                        else:
+                            print("(content not extracted)")
+                    except Exception as e:
+                        print(f"Error during scraping: {e}", file=sys.stderr)
+                    print()
+
+                if csv_writer:
+                    csv_writer.writerow([rss_url, item["title"], item["url"], content])
 
     finally:
         if csv_file:

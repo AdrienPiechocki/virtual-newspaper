@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional
 from datetime import datetime
 import json, os, random, statistics
+import argparse
+import csv
+import sys
 
 # =========================
 # MODELS
@@ -899,7 +902,71 @@ def generate_daily_script(forecast: list[dict]) -> str:
 
 
 
-if __name__ == "__main__":
+# =========================
+# EXPORT CSV
+# =========================
+
+def export_csv(forecast: List[Dict], path: str) -> None:
+    """
+    Exporte le forecast national en CSV, une ligne par région/jour.
+
+    Colonnes :
+        date, region, t_max, t_min, rain_mm, wind_kmh, sky_label,
+        is_hottest_today, is_coldest_today, hottest_city, hottest_temp,
+        coldest_city, coldest_temp, national_avg_max, national_avg_min
+    """
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
+        writer.writerow([
+            "date", "region", "t_max", "t_min", "rain_mm", "wind_kmh", "sky_label",
+            "hottest_city", "hottest_temp", "coldest_city", "coldest_temp",
+            "national_avg_max", "national_avg_min",
+        ])
+
+        for day in forecast:
+            date = day["date"]
+            hottest = day.get("hottest_city") or {}
+            coldest = day.get("coldest_city") or {}
+
+            for region_name, d in day["regions"].items():
+                effective_code = _effective_sky(d["weathercode"], d["rain"], d["t_max"])
+                writer.writerow([
+                    date,
+                    region_name,
+                    d["t_max"],
+                    d["t_min"],
+                    d["rain"],
+                    d["wind"],
+                    wmo_label(effective_code),
+                    hottest.get("city", ""),
+                    hottest.get("temp", ""),
+                    coldest.get("city", ""),
+                    coldest.get("temp", ""),
+                    day.get("avg_max", ""),
+                    day.get("avg_min", ""),
+                ])
+
+    print(f"CSV exporté : {path}", file=sys.stderr)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Génère le bulletin météo national (script narré ou export CSV).")
+    parser.add_argument("--csv", default="data/weather_bulletin.csv", metavar="FILE", help="Exporte le forecast en CSV (1 ligne par région/jour) au lieu d'imprimer le script narré")
+    parser.add_argument("--weekly", action="store_true", help="Génère le script narré sur 5 jours (par défaut : aujourd'hui seulement)")
+    args = parser.parse_args()
+
     client = OpenMeteoClient()
-    data = generate_weekly_script(client.get_national_weekly_forecast())
-    print(data)
+    forecast = client.get_national_weekly_forecast()
+
+    if args.csv:
+        export_csv(forecast, args.csv)
+        return
+
+    if args.weekly:
+        print(generate_weekly_script(forecast))
+    else:
+        print(generate_daily_script(forecast))
+
+
+if __name__ == "__main__":
+    main()

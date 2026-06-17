@@ -29,10 +29,10 @@ def parse_args():
     parser.add_argument("--days", "-d", type=int, default=7, metavar="N",
         help="Number of days back for the search window")
 
-    parser.add_argument("--top", "-t", type=int, default=100, metavar="N",
+    parser.add_argument("--top", "-t", type=int, default=20, metavar="N",
         help="Number of released games to display")
 
-    parser.add_argument("--top-upcoming", type=int, default=100, metavar="N",
+    parser.add_argument("--top-upcoming", type=int, default=20, metavar="N",
         help="Number of upcoming games to display in their dedicated section")
 
     parser.add_argument("--min-reviews", type=int, default=1, metavar="N",
@@ -44,7 +44,7 @@ def parse_args():
         metavar="FILTER",
         help="Steam filters to use")
 
-    parser.add_argument("--pages", type=int, default=6, metavar="N",
+    parser.add_argument("--pages", type=int, default=3, metavar="N",
         help="Number of pages to scrape per filter (50 apps/page)")
 
     parser.add_argument("--rate-min", type=float, default=0.6, metavar="SEC",
@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument("--clear-cache", action="store_true",
         help="Clear cache before running scraping")
 
-    parser.add_argument("--output", "-o", metavar="FILE.csv",
+    parser.add_argument("--output", "-o", default="data/steam_games.csv", metavar="FILE.csv",
         help="Export results to a CSV file (both sections)")
 
     parser.add_argument("--quiet", "-q", action="store_true",
@@ -271,7 +271,7 @@ def get_details(appid, conn, cursor, rate_min, rate_max, no_cache, headers):
     cached = cache_get(cursor, appid, no_cache)
     if cached:
         return cached
-    r = safe_get(STEAM_APP_DETAILS, params={"appids": appid, "l": "en"}, headers=headers)
+    r = safe_get(STEAM_APP_DETAILS, params={"appids": appid, "l": "fr"}, headers=headers)
     if not r:
         return None
     try:
@@ -413,7 +413,7 @@ def main():
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9,en;q=0.8"
+        "Accept-Language": "fr-FR,fr;q=0.9,fr;q=0.8"
     }
 
     tag_list = load_tags(Path("steam_tags.json").expanduser().resolve())
@@ -480,7 +480,8 @@ def main():
         name = details.get("name")
         if not name:
             continue
-
+        
+        price = details.get("price_overview", {}).get("initial_formatted", "")
         release = parse_date(details.get("release_date", {}).get("date", ""))
         is_coming_soon = details.get("release_date", {}).get("coming_soon", False)
 
@@ -512,6 +513,7 @@ def main():
         
         # Directly get raw description
         desc = details.get("short_description", "")
+
         clean_desc = html.unescape(desc)
         entry = {
             "name": name,
@@ -521,6 +523,7 @@ def main():
             "coming_soon": is_coming_soon,
             "tags": tags_display(details),
             "description": clean_desc,
+            "price": price
         }
 
         if is_coming_soon:
@@ -589,7 +592,7 @@ def main():
             [{**g, "section": "upcoming"} for g in top_upcoming]
         )
         fieldnames = ["section", "name", "appid", "release", "score",
-                      "recommendations", "coming_soon", "tags", "description"]
+                      "recommendations", "coming_soon", "tags", "description", "price"]
         with open(args.output, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             writer.writeheader()
