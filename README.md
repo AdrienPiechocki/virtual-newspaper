@@ -6,7 +6,7 @@ en un PDF unique mis en page façon journal papier (A3, colonnes, filets, lettri
 ## Installation
 
 ```bash
-pip install -r requirements.txt --break-system-packages
+pip install -r requirements.txt
 ```
 
 ## Utilisation
