@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 
 from difflib import SequenceMatcher
 
-def is_too_similar(new_title: str, seen_titles: list[str], threshold: float = 0.8) -> bool:
+def is_too_similar(new_title: str, seen_titles: list[str], threshold: float = 0.5) -> bool:
     """Vérifie si le titre est trop similaire à un titre déjà vu."""
     for seen in seen_titles:
         # Calcule le ratio de similarité (0.0 à 1.0)

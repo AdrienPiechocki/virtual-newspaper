@@ -5,6 +5,7 @@ et les normalise en structures Python prêtes à être injectées dans le templa
 """
 
 import csv
+from collections import defaultdict
 from pathlib import Path
 from datetime import datetime
 
@@ -52,12 +53,13 @@ def load_steam_games(path: Path) -> dict[str, list[dict]]:
     upcoming = [r for r in rows if r.get("section") == "upcoming"]
     demos = [r for r in rows if r.get("section") == "demos"]
     sales = [r for r in rows if r.get("section") == "sales"]
+    header = [r for r in rows if r.get("section") == "header"]
 
     sale_appids = {r["appid"] for r in sales if r.get("appid")}
     for r in released:
         r["on_sale"] = r.get("appid") in sale_appids
 
-    return {"trending": released, "upcoming": upcoming, "demos": demos, "sales": sales}
+    return {"trending": released, "upcoming": upcoming, "demos": demos, "sales": sales, "header": header}
 
 
 def load_linkedin_jobs(path: Path) -> list[dict]:
@@ -77,23 +79,52 @@ def load_linkedin_jobs(path: Path) -> list[dict]:
 
 def load_weather(path: Path) -> list[dict]:
     """
-    weather_forecast.py exporte un CSV avec une ligne par région/jour :
-    date, region, t_max, t_min, rain_mm, wind_kmh, sky_label,
-    hottest_city, hottest_temp, coldest_city, coldest_temp,
-    national_avg_max, national_avg_min
-
-    On ne garde que le jour le plus proche (premier en date) pour le journal,
-    et on trie les régions par t_max décroissant pour un affichage plus lisible.
+    Retourne une météo structurée par région avec prévisions sur plusieurs jours.
     """
     rows = _read_csv(path)
-    if not rows:
-        return []
+    ICONS = {
+        "ciel dégagé": "fa-sun",
 
-    first_date = rows[0]["date"]
-    today_rows = [r for r in rows if r["date"] == first_date]
-    today_rows.sort(key=lambda r: float(r.get("t_max", 0)), reverse=True)
-    return today_rows
+        "principalement dégagé": "fa-cloud-sun",
+        "légèrement nuageux": "fa-cloud-sun",
+        "partiellement nuageux": "fa-cloud-sun",
+        "nébulosité variable": "fa-cloud-sun",
 
+        "couvert": "fa-cloud",
+
+        "brume légère": "fa-smog",
+        "brouillard": "fa-smog",
+
+        "bruine légère": "fa-cloud-rain",
+        "bruine modérée": "fa-cloud-rain",
+        "bruine dense": "fa-cloud-rain",
+
+        "pluie faible": "fa-cloud-showers-heavy",
+        "pluie modérée": "fa-cloud-showers-heavy",
+        "pluie forte": "fa-cloud-showers-heavy",
+
+        "averses légères": "fa-cloud-rain",
+        "averses modérées": "fa-cloud-rain",
+        "averses violentes": "fa-cloud-rain",
+        "averses possibles": "fa-cloud-rain",
+        "averses et brouillard": "fa-cloud-rain",
+
+        "neige légère": "fa-snowflake",
+        "neige modérée": "fa-snowflake",
+        "neige forte": "fa-snowflake",
+
+        "orages isolés": "fa-cloud-bolt",
+        "orages locaux": "fa-cloud-bolt",
+        "orages épars": "fa-cloud-bolt",
+        "averses orageuses": "fa-cloud-bolt",
+        "orage": "fa-cloud-bolt",
+        "orage avec grêle": "fa-cloud-bolt",
+        "orage violent avec grêle": "fa-cloud-bolt",
+    }
+
+    for row in rows:
+        row["icon"] = ICONS.get(row["sky_label"], "fa-cloud")
+    return rows
 
 def load_all(data_dir: Path) -> dict:
     """Point d'entrée unique : charge toutes les sources depuis data_dir."""

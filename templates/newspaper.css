@@ -20,6 +20,11 @@ body {
     line-height: 1.42;
 }
 
+a {
+  color: black;
+  text-decoration: none;
+}
+
 /* ============ Masthead ============ */
 .masthead-top {
     display: flex;
@@ -132,6 +137,74 @@ body {
     border-left: 3px solid #1a1a1a;
     padding-left: 3mm;
 }
+.weather-day-block {
+    margin-bottom: 16px;
+}
+
+.weather-date {
+    text-align: center;
+    font-size: 18pt;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.weather-map {
+    position: relative;
+    width: 92%;
+    max-width: 900px;
+    margin: auto;
+}
+
+.map-bg {
+    width: 100%;
+    display: block;
+}
+
+.points-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.weather-point {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: 1.5px 3px;
+    border-radius: 5px;
+    color: black;
+    font-size: 12pt;
+    text-align: center;
+    min-width: 26px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    line-height: 1;
+}
+
+.weather-point .temp {
+    font-weight: bold;
+}
+
+.weather-point .city {
+    font-size: 9pt;
+}
+
+
+.weather-icon {
+    color: #000;
+    font-size: 16pt;
+    line-height: 1;
+}
+
+.weather-icon i {
+    display: block;
+}
+
+.weather-days-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
 
 /* ============ Articles en colonnes ============ */
 .article-columns {
@@ -163,10 +236,6 @@ body {
     margin: 0 0 2mm 0;
 }
 
-.article-lead .article-title {
-    font-size: 16pt;
-}
-
 .article-summary {
     text-align: justify;
     margin: 0 0 1.5mm 0;
@@ -185,48 +254,108 @@ body {
 }
 
 /* ============ Steam / jeux vidéo ============ */
-.steam-columns {
-    display: flex;
-    gap: 8mm;
-}
-
-.steam-block { flex: 1; }
-
 .steam-subtitle {
-    font-size: 12pt;
+    font-size: 13pt;
     font-weight: bold;
     border-bottom: 1px solid #1a1a1a;
     padding-bottom: 1.5mm;
-    margin-bottom: 3mm;
+    margin: 5mm 0 4mm 0;
 }
 
-.game-entry {
-    margin-bottom: 4mm;
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5mm;
+}
+
+.game-grid-compact {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.game-card {
     break-inside: avoid;
+    border: 1px solid #1a1a1a;
+}
+
+.game-card-compact {
+    border: 1px solid #999;
+}
+
+.game-cover {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 460 / 215;
+    overflow: hidden;
+    background: #2a2a2a;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+.game-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.game-cover-compact {
+    border-bottom: 1px solid #999;
+}
+
+.badge-sale {
+    position: absolute;
+    top: 1.5mm;
+    right: 1.5mm;
+    background: #b3261e;
+    color: #fff;
+    font-size: 7pt;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    padding: 0.5mm 1.5mm;
+    text-transform: uppercase;
+}
+
+.game-card-body {
+    padding: 2.5mm 3mm 3mm;
+}
+
+.game-card-compact .game-card-body {
+    padding: 1.5mm 2mm 2mm;
 }
 
 .game-entry-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
+    gap: 2mm;
+    margin-bottom: 1mm;
 }
 
 .game-name {
     font-weight: bold;
-    font-size: 11pt;
+    font-size: 10pt;
+    line-height: 1.2;
+}
+
+.game-card-compact .game-name {
+    font-size: 8.5pt;
+    display: block;
+    margin-bottom: 1mm;
 }
 
 .game-price {
     font-weight: bold;
+    font-size: 9pt;
+    white-space: nowrap;
 }
 
 .game-desc {
     text-align: justify;
+    font-size: 8pt;
     margin: 1mm 0;
 }
 
 .game-tags, .game-meta {
-    font-size: 8pt;
+    font-size: 7.5pt;
     font-style: italic;
     color: #555;
 }

@@ -708,8 +708,9 @@ def main():
         
         # Directly get raw description
         desc = details.get("short_description", "")
-
         clean_desc = html.unescape(desc)
+
+        header_img = details.get("header_image", "")
         entry = {
             "name": name,
             "appid": appid,
@@ -718,7 +719,8 @@ def main():
             "coming_soon": is_coming_soon,
             "tags": tags_display(details),
             "description": clean_desc,
-            "price": price
+            "price": price,
+            "header": header_img
         }
 
         if details.get("type") == "demo":
@@ -823,7 +825,7 @@ def main():
             [{**g, "section": "sales"} for g in sales]
         )
         fieldnames = ["section", "name", "appid", "release", "score",
-                      "recommendations", "coming_soon", "tags", "description", "price"]
+                      "recommendations", "coming_soon", "tags", "description", "price", "header"]
         with open(args.output, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             writer.writeheader()

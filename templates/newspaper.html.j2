@@ -8,43 +8,20 @@
 </style>
 </head>
 <body>
-
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <header class="masthead">
     <div class="masthead-top">
-        <span class="edition-tag">ÉDITION QUOTIDIENNE</span>
+        <span class="edition-tag">ÉDITION HÉBDOMADAIRE</span>
         <span class="edition-tag">{{ date_str }}</span>
     </div>
     <h1 class="masthead-title">{{ masthead }}</h1>
     <div class="masthead-sub">
-        <span>Météo &middot; Actualités &middot; Jeux &middot; Emploi</span>
+        <span>Actualités &middot; Jeux &middot; Météo &middot; Emploi</span>
     </div>
     <div class="rule-thick"></div>
 </header>
 
-<!-- ===================== MÉTÉO (bandeau du haut) ===================== -->
-{% if weather %}
-<section class="weather-strip">
-    <h2 class="section-label">Bulletin météo national</h2>
-    <div class="weather-grid">
-        {% for w in weather %}
-        <div class="weather-card">
-            <div class="weather-city">{{ w.region }}</div>
-            <div class="weather-temp">{{ w.t_min }}° / {{ w.t_max }}°</div>
-            <div class="weather-condition">{{ w.sky_label }}</div>
-            <div class="weather-detail">Vent {{ w.wind_kmh }} km/h &middot; Pluie {{ w.rain_mm }} mm</div>
-        </div>
-        {% endfor %}
-    </div>
-    {% if weather[0] %}
-    <p class="weather-narrative">
-        Moyenne nationale {{ weather[0].national_avg_min }}° / {{ weather[0].national_avg_max }}°.
-        Le plus chaud : {{ weather[0].hottest_city }} ({{ weather[0].hottest_temp }}°).
-        Le plus frais : {{ weather[0].coldest_city }} ({{ weather[0].coldest_temp }}°).
-    </p>
-    {% endif %}
-</section>
-<div class="rule-thin"></div>
-{% endif %}
 
 <!-- ===================== ARTICLES (corps en colonnes) ===================== -->
 {% if rss_articles %}
@@ -52,8 +29,8 @@
     <h2 class="section-label">À la une</h2>
     <div class="article-columns">
         {% for a in rss_articles %}
-        <article class="article {% if loop.first %}article-lead{% endif %}">
-            <h3 class="article-title">{{ a.title }}</h3>
+        <article class="article">
+            <a href={{ a.url }}><h3 class="article-title">{{ a.title }}</h3></a>
             <p class="article-summary">{{ a.body | truncate_words(70) }}</p>
             <div class="article-meta">{{ a.url | domain_only }}</div>
         </article>
@@ -67,52 +44,129 @@
 {% if steam_games.trending or steam_games.upcoming or steam_games.demos %}
 <section class="steam">
     <h2 class="section-label">Le coin du jeu vidéo</h2>
-    <div class="steam-columns">
-        {% if steam_games.trending %}
-        <div class="steam-block">
-            <h3 class="steam-subtitle">En vogue sur Steam</h3>
-            {% for g in steam_games.trending %}
-            <div class="game-entry">
+
+    {% if steam_games.trending %}
+    <h3 class="steam-subtitle">En vogue sur Steam</h3>
+    <div class="game-grid">
+        {% for g in steam_games.trending %}
+        <div class="game-card">
+            <div class="game-cover">
+                <img src={{ g.header }} alt="">
+                {% if g.on_sale %}<span class="badge-sale">PROMO</span>{% endif %}
+            </div>
+            <div class="game-card-body">
                 <div class="game-entry-header">
-                    <span class="game-name">{{ g.name }}{% if g.on_sale %} <span class="badge-sale">PROMO</span>{% endif %}</span>
+                    <a class="game-name" href="https://store.steampowered.com/app/{{ g.appid }}">{{ g.name }}</a>
                     {% if g.price %}<span class="game-price">{{ g.price }}</span>{% endif %}
                 </div>
-                <div class="game-desc">{{ g.description | truncate_words(45) }}</div>
+                <div class="game-desc">{{ g.description | truncate_words(32) }}</div>
                 {% if g.tags %}<div class="game-tags">{{ g.tags | first_tags(4) }}</div>{% endif %}
             </div>
-            {% endfor %}
         </div>
-        {% endif %}
-        {% if steam_games.upcoming %}
-        <div class="steam-block">
-            <h3 class="steam-subtitle">À paraître</h3>
-            {% for g in steam_games.upcoming %}
-            <div class="game-entry">
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if steam_games.upcoming %}
+    <h3 class="steam-subtitle">À paraître</h3>
+    <div class="game-grid">
+        {% for g in steam_games.upcoming %}
+        <div class="game-card">
+            <div class="game-cover">
+                <img src={{ g.header }} alt="">
+            </div>
+            <div class="game-card-body">
                 <div class="game-entry-header">
-                    <span class="game-name">{{ g.name }}</span>
+                    <a class="game-name" href="https://store.steampowered.com/app/{{ g.appid }}">{{ g.name }}</a>
                     {% if g.price %}<span class="game-price">{{ g.price }}</span>{% endif %}
                 </div>
-                <div class="game-desc">{{ g.description | truncate_words(45) }}</div>
+                <div class="game-desc">{{ g.description | truncate_words(32) }}</div>
                 {% if g.release and g.release != "Upcoming" %}
                 <div class="game-meta">Sortie prévue : {{ g.release }}</div>
                 {% endif %}
             </div>
-            {% endfor %}
         </div>
-        {% endif %}
-        {% if steam_games.demos %}
-        <div class="steam-block">
-            <h3 class="steam-subtitle">Démos à essayer</h3>
-            {% for g in steam_games.demos %}
-            <div class="game-entry game-entry-compact">
-                <span class="game-name">{{ g.name }}</span>
-                <div class="game-desc">{{ g.description | truncate_words(28) }}</div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+        {% endfor %}
     </div>
+    {% endif %}
+
+    {% if steam_games.demos %}
+    <h3 class="steam-subtitle">Démos à essayer &mdash; C'est le Steam Néo Fest!</h3>
+    <div class="game-grid game-grid-compact">
+        {% for g in steam_games.demos %}
+        <div class="game-card game-card-compact">
+            <div class="game-cover game-cover-compact">
+                <img src={{ g.header }} alt="">
+            </div>
+            <div class="game-card-body">
+                <a class="game-name" href="https://store.steampowered.com/app/{{ g.appid }}">{{ g.name }}</a>
+                <div class="game-desc">{{ g.description | truncate_words(20) }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 </section>
+<div class="rule-thin"></div>
+{% endif %}
+
+<!-- ===================== MÉTÉO ===================== -->
+{% if weather %}
+{% set data = weather|sort(attribute='date')|groupby('date') %}
+{% set city_coords = {
+    'Paris':      {'left': 55.12, 'top': 22.44},
+    'Tours':      {'left': 47.74, 'top': 38.76},
+    'Dijon':      {'left': 75.61, 'top': 39.05},
+    'Le Havre':   {'left': 38.02, 'top': 15.54},
+    'Lille':      {'left': 60.49, 'top': 5.26},
+    'Strasbourg': {'left': 95.50, 'top': 25.51},
+    'Nantes':     {'left': 25.36, 'top': 40.17},
+    'Brest':      {'left': 4.50,  'top': 27.49},
+    'Bordeaux':   {'left': 32.79, 'top': 65.93},
+    'Toulouse':   {'left': 48.20, 'top': 79.27},
+    'Lyon':       {'left': 74.04, 'top': 55.91},
+    'Marseille':  {'left': 78.11, 'top': 80.61},
+    'Ajaccio':    {'left': 90.96, 'top': 89.52},
+} %}
+
+<h2 class="section-label">Météo de la semaine</h2>
+<div class="weather-days-container">
+{% for date, items in data %}
+
+<div class="weather-day-block">
+
+    <h2 class="weather-date">{{ items[0].date_fr }}</h2>
+
+    <div class="weather-map">
+        <img src="./france.jpg" class="map-bg">
+
+        <div class="points-layer">
+
+            {% for w in items %}
+            {% set coords = city_coords.get(w.city) %}
+            {% if coords %}
+            <div class="weather-point"
+                 style="
+                    left: {{ coords.left }}%;
+                    top: {{ coords.top }}%;
+                 ">
+                <div class="temp">{{ w.t_max }}°</div>
+                <div class="weather-icon">
+                    <i class="fa-solid {{ w.icon }}"></i>
+                </div>
+                <div class="city">{{ w.city }}</div>
+            </div>
+            {% endif %}
+            {% endfor %}
+
+        </div>
+    </div>
+
+</div>
+
+{% endfor %}
+
+</div>
 <div class="rule-thin"></div>
 {% endif %}
 
@@ -133,7 +187,7 @@
         <tbody>
             {% for j in linkedin_jobs %}
             <tr>
-                <td class="job-title">{{ j.title }}</td>
+                <td class="job-title"><a href={{ j.url }}>{{ j.title }}</a></td>
                 <td>{{ j.company }}</td>
                 <td>{{ j.location }}</td>
                 <td>{{ j.work_type if j.work_type else "—" }}</td>
