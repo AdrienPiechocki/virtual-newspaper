@@ -1,14 +1,18 @@
 #!/bin/bash
 set -e
-
 cd "$(dirname "$0")"
+
+set -a
+source .env
+set +a
 
 source .venv/bin/activate
 
-python -m scripts.articles.rss_reader https://www.lemonde.fr/rss/en_continu.xml https://www.franceinfo.fr/titres.rss
+python -m scripts.articles.rss_reader https://www.lemonde.fr/rss/en_continu.xml https://www.franceinfo.fr/titres.rss https://www.journalduhacker.net/rss.rss
 python -m scripts.linkedin.linkedin_scraper
-python -m scripts.steam.steam_trending --clear-cache
+python -m scripts.steam.steam_trending
 python -m scripts.forecast.weather_forecast
+python -m scripts.nexus.morrowind
 
 DATE=$(date +%Y-%m-%d)
 
@@ -17,7 +21,7 @@ OUTPUT_FILE="output/LHebdoDuNerd-${DATE}.pdf"
 python generate_newspaper.py \
     --data-dir data \
     --output "output/Journal.pdf" \
-    --masthead "L'Hebdo du Nerd"
+    --masthead "L'Hebdo du Geek"
 
 curl --fail \
      -u "$NEXTCLOUD_USER:$NEXTCLOUD_APP_PASSWORD" \

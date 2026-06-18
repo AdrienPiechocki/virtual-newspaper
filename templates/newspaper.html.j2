@@ -51,8 +51,11 @@
         {% for g in steam_games.trending %}
         <div class="game-card">
             <div class="game-cover">
-                <img src={{ g.header }} alt="">
+                <a href="https://store.steampowered.com/app/{{ g.appid }}">
+                    <img src="{{ g.header }}" alt="{{ g.name }}">
+                </a>
                 {% if g.on_sale %}<span class="badge-sale">PROMO</span>{% endif %}
+                {% if g.is_gem %}<span class="badge-gem">Pépite</span>{% endif %}
             </div>
             <div class="game-card-body">
                 <div class="game-entry-header">
@@ -73,7 +76,9 @@
         {% for g in steam_games.upcoming %}
         <div class="game-card">
             <div class="game-cover">
-                <img src={{ g.header }} alt="">
+                <a href="https://store.steampowered.com/app/{{ g.appid }}">
+                    <img src="{{ g.header }}" alt="{{ g.name }}">
+                </a>
             </div>
             <div class="game-card-body">
                 <div class="game-entry-header">
@@ -96,7 +101,9 @@
         {% for g in steam_games.demos %}
         <div class="game-card game-card-compact">
             <div class="game-cover game-cover-compact">
-                <img src={{ g.header }} alt="">
+                <a href="https://store.steampowered.com/app/{{ g.appid }}">
+                    <img src="{{ g.header }}" alt="{{ g.name }}">
+                </a>
             </div>
             <div class="game-card-body">
                 <a class="game-name" href="https://store.steampowered.com/app/{{ g.appid }}">{{ g.name }}</a>
@@ -107,6 +114,35 @@
     </div>
     {% endif %}
 </section>
+<div class="rule-thin"></div>
+{% endif %}
+
+<!-- ===================== MODS MORROWIND ===================== -->
+{% if mods %}
+<section class="morrowind">
+    <h2 class="section-label">Nouvautés en Morrowind</h2>
+
+    <h3 class="morrowind-subtitle">Mods en vogue</h3>
+    <div class="mods-grid">
+        {% for m in mods %}
+        <div class="mod-card">
+            <div class="mod-cover">
+                <a href="{{ m.url | default('#') }}">
+                    <img src="{{ m.image }}" alt="{{ m.name }}">
+                </a>
+            </div>
+            <div class="mod-card-body">
+                <div class="mod-entry-header">
+                    <a class="mod-name" href="{{ m.url | default('#') }}">{{ m.name or 'Sans nom' }}</a>
+                </div>
+                <div class="mod-desc">{{ m.description | truncate_words(32) }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</section>
+
 <div class="rule-thin"></div>
 {% endif %}
 
@@ -185,11 +221,11 @@
         </thead>
         <tbody>
             {% for j in linkedin_jobs %}
-            <tr>
-                <td class="job-title"><a href={{ j.url }}>{{ j.title }}</a></td>
-                <td>{{ j.company }}</td>
-                <td>{{ j.location }}</td>
-                <td class="job-skills">{{ j.skills_found }}</td>
+            <tr class="job-row">
+                <td><a href="{{ j.url }}" class="row-link">{{ j.title }}</a></td>
+                <td><a href="{{ j.url }}" class="row-link">{{ j.company }}</a></td>
+                <td><a href="{{ j.url }}" class="row-link">{{ j.location }}</a></td>
+                <td><a href="{{ j.url }}" class="row-link">{{ j.skills_found }}</a></td>
             </tr>
             {% endfor %}
         </tbody>

@@ -80,6 +80,7 @@ def build_html(data: dict, masthead: str) -> str:
         steam_games=data["steam_games"],
         linkedin_jobs=data["linkedin_jobs"],
         weather=data["weather"],
+        mods=data["morrowind_mods"],
         css=css_content,
     )
 

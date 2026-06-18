@@ -52,14 +52,14 @@ def load_steam_games(path: Path) -> dict[str, list[dict]]:
     released = [r for r in rows if r.get("section") == "released"]
     upcoming = [r for r in rows if r.get("section") == "upcoming"]
     demos = [r for r in rows if r.get("section") == "demos"]
-    sales = [r for r in rows if r.get("section") == "sales"]
-    header = [r for r in rows if r.get("section") == "header"]
+    sales = [r for r in rows if r.get("section") == "sales"]    
 
     sale_appids = {r["appid"] for r in sales if r.get("appid")}
     for r in released:
         r["on_sale"] = r.get("appid") in sale_appids
+        r["is_gem"] = r["is_gem"] == 'True'
 
-    return {"trending": released, "upcoming": upcoming, "demos": demos, "sales": sales, "header": header}
+    return {"trending": released, "upcoming": upcoming, "demos": demos, "sales": sales}
 
 
 def load_linkedin_jobs(path: Path) -> list[dict]:
@@ -126,6 +126,10 @@ def load_weather(path: Path) -> list[dict]:
         row["icon"] = ICONS.get(row["sky_label"], "fa-cloud")
     return rows
 
+def load_mods(path: Path) -> list[dict]:
+    rows = _read_csv(path)
+    return rows
+
 def load_all(data_dir: Path) -> dict:
     """Point d'entrée unique : charge toutes les sources depuis data_dir."""
     return {
@@ -133,5 +137,6 @@ def load_all(data_dir: Path) -> dict:
         "steam_games": load_steam_games(data_dir / "steam_games.csv"),
         "linkedin_jobs": load_linkedin_jobs(data_dir / "linkedin_jobs.csv"),
         "weather": load_weather(data_dir / "weather_bulletin.csv"),
+        "morrowind_mods": load_mods(data_dir / "morrowind_mods.csv"),
         "generated_at": datetime.now(),
     }
