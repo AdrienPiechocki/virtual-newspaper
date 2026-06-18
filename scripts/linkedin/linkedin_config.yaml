@@ -4,15 +4,16 @@
 search:
   # Mots-clés de recherche (au moins un requis)
   keywords:
-    - "Développeur"
+    - "Développeur Python"
     - "Software Engineer"
     - "DevOps Linux"
+    - "Développeur Jeux Vidéo"
 
   # Localisation
   location: "Ile de France, France"
 
   # Nombre max d'offres à scraper par recherche
-  max_jobs_per_keyword: 20
+  max_jobs_per_keyword: 10
   
   # Nombre max d'offres par entreprise (évite qu'un gros recruteur monopolise les résultats)
   max_jobs_per_company: 3

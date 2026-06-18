@@ -15,11 +15,11 @@ pip install -r requirements.txt
 # lancer chaque générateur:
 python -m scripts.articles.rss_reader https://www.lemonde.fr/rss/en_continu.xml https://www.franceinfo.fr/titres.rss
 python -m scripts.linkedin.linkedin_scraper
-python -m scripts.steam.steam_trending
+python -m scripts.steam.steam_trending --no-cache
 python -m scripts.forecast.weather_forecast
 
 # fait pointer chaque script existant vers data/<nom>.csv, puis :
-python generate_newspaper.py --data-dir data --output output/journal.pdf --masthead "Le Quotidien d'Adrien"
+python generate_newspaper.py --data-dir data --output output/journal.pdf --masthead "L'Hebdo du Nerd"
 ```
 
 ## Personnalisation
