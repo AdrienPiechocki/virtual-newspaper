@@ -7,6 +7,7 @@ en un PDF unique mis en page façon journal papier (A3, colonnes, filets, lettri
 
 ```bash
 pip install -r requirements.txt
+playwright install chromium
 ```
 
 ## Utilisation
