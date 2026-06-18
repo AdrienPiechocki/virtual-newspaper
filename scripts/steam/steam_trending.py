@@ -54,8 +54,8 @@ def parse_args():
     parser.add_argument("--top-upcoming", type=int, default=20, metavar="N",
         help="Number of upcoming games to display in their dedicated section")
 
-    parser.add_argument("--min-reviews", type=int, default=1, metavar="N",
-        help="Minimum number of reviews required to include a released game")
+    parser.add_argument("--min-reviews", type=int, default=0.70, metavar="N",
+        help="Minimum percentage of positive reviews required to include a released game")
 
     parser.add_argument("--filters", nargs="+",
         default=["popularnew", "topsellers", "new"],
@@ -234,39 +234,37 @@ def get_sale_games():
 
     return found
 
-def get_demos(target_url, pw_page=None):
+def get_demos(target_url):
     """
-    Récupère une liste unique d'appids depuis les liens de la page.
+    Récupère tous les appids en scannant toutes les balises <a> de la page.
     """
-    selector = "div.gASJ2lL_xmVNuZkWGvrWg a"
-    # Regex pour capturer la suite de chiffres après /app/
+    # Regex : cherche "/app/" suivi de chiffres
     appid_pattern = re.compile(r"/app/(\d+)")
     
-    app_ids = set() # Utilisation d'un set pour garantir l'unicité
+    app_ids = set() 
     results = []
     seen_appids = set()
 
     try:
         def extract_ids(page_obj):
-            page_obj.wait_for_selector(selector, timeout=5000)
-            # Récupère tous les hrefs
-            all_hrefs = page_obj.locator(selector).evaluate_all("elements => elements.map(el => el.href)")
+            # On ne fait pas wait_for_selector, on récupère directement
+            # Tous les hrefs de la page
+            all_hrefs = page_obj.locator("a").evaluate_all("elements => elements.map(el => el.href)")
             
             for url in all_hrefs:
-                match = appid_pattern.search(url)
-                if match:
-                    app_ids.add(int(match.group(1)))
-            return list(app_ids)
-
-        appids = []
+                if url: # Vérifier si le lien existe
+                    match = appid_pattern.search(url)
+                    if match:
+                        app_ids.add(match.group(1))
+            return sorted(list(app_ids))
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=False)
             page = browser.new_page()
-            page.goto(target_url, wait_until="domcontentloaded", timeout=10000)
+            page.goto(target_url, wait_until="networkidle", timeout=10000)
             ids = extract_ids(page)
             browser.close()
-            appids = ids
+            appids =  ids
         
         for appid in appids:
             if appid in seen_appids:
@@ -1034,8 +1032,9 @@ def main():
                 continue
 
             pos, neg = get_review_breakdown(appid, conn, cursor, args.no_cache)
-
-            if not is_coming_soon and details.get("type") != "demo" and pos + neg < args.min_reviews:
+            total = pos + neg
+            ratio = pos / total if total else 0
+            if not is_coming_soon and details.get("type") != "demo" and ratio < args.min_reviews:
                 continue
 
             # Filtre anti-répétition : un jeu upcoming déjà mis en avant récemment
