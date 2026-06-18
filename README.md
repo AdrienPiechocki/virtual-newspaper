@@ -10,6 +10,13 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
+Si besoin de l'intégration avec Nextcloud, ajoutez un .env avec les bonnes valeurs
+```bash
+export NEXTCLOUD_USER="user"
+export NEXTCLOUD_APP_PASSWORD="XXXXXXXXXXXXXXXXXXXXXXX"
+export NEXTCLOUD_DOMAIN="nextcloud.domain.fr"
+```
+
 ## Utilisation
 
 ```bash
