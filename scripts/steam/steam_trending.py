@@ -1156,7 +1156,7 @@ def main():
                 ref_date = release if release else datetime.now()
                 entry["score"] = round(released_score(pos, neg, ref_date), 2)
                 if not args.quiet:
-                    print(f"  ✓ {name} (score={entry['score']}, reviews={pos})")
+                    print(f"  ✅ {name} (score={entry['score']}, reviews={pos})")
 
                 if is_potential_gem and is_gem(
                     pos, neg,
@@ -1172,7 +1172,7 @@ def main():
                 entry["discount"] = discount
                 sales.append(entry)
                 if not args.quiet:
-                    print(f"  ✅ {name} (sales)")
+                    print(f"  💸 {name} (sales)")
 
     # ----------------------------
     # CLASSEMENT
