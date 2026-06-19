@@ -9,6 +9,7 @@ import argparse
 import csv
 import xml.etree.ElementTree as ET
 import urllib.request
+from urllib.parse import urljoin, urlparse
 from scripts.articles.article_scraper import fetch_article
 
 import re
@@ -16,7 +17,7 @@ from bs4 import BeautifulSoup
 
 from difflib import SequenceMatcher
 
-def is_too_similar(new_title: str, seen_titles: list[str], threshold: float = 0.5) -> bool:
+def is_too_similar(new_title: str, seen_titles: list[str], threshold: float = 0.6) -> bool:
     """Vérifie si le titre est trop similaire à un titre déjà vu."""
     for seen in seen_titles:
         # Calcule le ratio de similarité (0.0 à 1.0)
@@ -62,10 +63,84 @@ def fetch_html(url: str) -> str:
     with urllib.request.urlopen(req, timeout=10) as resp:
         return resp.read().decode("utf-8", errors="replace")
 
+def fetch_rss_playwright(url: str) -> str:
+    """Fallback pour les flux protégés par Cloudflare (timeout/403 en urllib).
+    Ouvre un vrai navigateur (headless=False) pour passer le challenge JS,
+    comme dans steam_trending.py."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+        )
+        page.goto(url, timeout=30000, wait_until="domcontentloaded")
+        content = page.content()
+        # Le rendu navigateur enveloppe le XML dans du HTML (DOM XML viewer) :
+        # on récupère le texte brut du <pre> si présent, sinon tout le contenu.
+        try:
+            pre = page.query_selector("pre")
+            if pre:
+                content = pre.inner_text()
+        except Exception:
+            pass
+        browser.close()
+        return content
+
+
+def scrape_homepage(html: str, base_url: str) -> list[dict]:
+    """Extrait une liste d'articles {title, url} depuis une page HTML
+    (page d'accueil ou page de catégorie WordPress), en se basant sur le
+    motif standard <h2>/<h3> contenant un unique <a> (entry-title).
+    Sert de remplacement quand le site n'a pas de flux RSS fiable."""
+    soup = BeautifulSoup(html, "html.parser")
+    domain = urlparse(base_url).netloc
+
+    items = []
+    seen_urls = set()
+
+    for heading in soup.find_all(["h1", "h2", "h3"]):
+        link = heading.find("a", href=True)
+        if not link:
+            continue
+
+        title = link.get_text(strip=True)
+        if not title or len(title) < 8:
+            continue
+
+        href = urljoin(base_url, link["href"])
+
+        # On ne garde que les liens internes au même domaine, qui ressemblent
+        # à des articles (pas des liens de catégorie/tag/pagination/auteur)
+        if urlparse(href).netloc != domain:
+            continue
+        if any(seg in href for seg in ["/Categorie/", "/tag/", "/page/", "/auteur/", "#"]):
+            continue
+        if href in seen_urls:
+            continue
+
+        seen_urls.add(href)
+        items.append({"title": title, "url": href})
+
+    return items
+
+
 def fetch_rss(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+            "Accept": "application/rss+xml, application/xml, text/xml, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Connection": "keep-alive",
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        print(f"(urllib failed: {e} — retrying with Playwright)", file=sys.stderr)
+        return fetch_rss_playwright(url)
 
 
 def parse_feed(xml_text: str) -> list[dict]:
@@ -124,8 +199,12 @@ def main():
             print(f"\n{'#'*20}\nFetching feed: {rss_url}\n{'#'*20}", file=sys.stderr)
             
             try:
-                xml_text = fetch_rss(rss_url)
-                items = parse_feed(xml_text)
+                raw = fetch_rss(rss_url)
+                try:
+                    items = parse_feed(raw)
+                except ET.ParseError:
+                    print(f"(not a valid RSS/Atom feed — falling back to HTML scraping)", file=sys.stderr)
+                    items = scrape_homepage(raw, rss_url)
             except Exception as e:
                 print(f"Failed to fetch feed {rss_url}: {e}", file=sys.stderr)
                 continue
@@ -136,13 +215,7 @@ def main():
 
             if args.limit:
                 items = items[:args.limit]
-
-            for item in items:
-                # Vérification de la similarité
-                if is_too_similar(item['title'], seen_titles):
-                    print(f"Skipping duplicate: {item['title']}", file=sys.stderr)
-                    continue
-
+            
             # Traitement des articles du flux actuel
             for i, item in enumerate(items, 1):
                 print(f"{'='*60}")
@@ -150,6 +223,10 @@ def main():
                 print(f"URL: {item['url']}")
                 print(f"{'='*60}")
 
+                if is_too_similar(item['title'], seen_titles):
+                    print(f"Skipping duplicate: {item['title']}", file=sys.stderr)
+                    continue
+                
                 content = ""
                 if not args.scrape:
                     try:

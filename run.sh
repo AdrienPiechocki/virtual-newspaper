@@ -8,7 +8,7 @@ set +a
 
 source .venv/bin/activate
 
-python -m scripts.articles.rss_reader https://www.lemonde.fr/rss/en_continu.xml https://www.franceinfo.fr/titres.rss https://www.journalduhacker.net/rss.rss
+python -m scripts.articles.rss_reader https://fr.linuxadictos.com/ https://www.lemonde.fr/rss/en_continu.xml https://www.franceinfo.fr/titres.rss
 python -m scripts.linkedin.linkedin_scraper
 python -m scripts.steam.steam_trending
 python -m scripts.forecast.weather_forecast
@@ -16,7 +16,7 @@ python -m scripts.nexus.morrowind
 
 DATE=$(date +%Y-%m-%d)
 
-OUTPUT_FILE="output/LHebdoDuNerd-${DATE}.pdf"
+OUTPUT_FILE="output/LHebdoDuGeek-${DATE}.pdf"
 
 python generate_newspaper.py \
     --data-dir data \
@@ -26,10 +26,10 @@ python generate_newspaper.py \
 curl --fail \
      -u "$NEXTCLOUD_USER:$NEXTCLOUD_APP_PASSWORD" \
      -T "output/Journal.pdf" \
-     "https://${NEXTCLOUD_DOMAIN}/remote.php/dav/files/$NEXTCLOUD_USER/L%27Hebdo%20du%20Nerd/$(basename "$OUTPUT_FILE")"
+     "https://${NEXTCLOUD_DOMAIN}/remote.php/dav/files/$NEXTCLOUD_USER/L%27Hebdo%20du%20Geek/$(basename "$OUTPUT_FILE")"
      
 # Garder uniquement les 5 derniers journaux sur Nextcloud
-NEXTCLOUD_DIR_URL="https://${NEXTCLOUD_DOMAIN}/remote.php/dav/files/$NEXTCLOUD_USER/L%27Hebdo%20du%20Nerd/"
+NEXTCLOUD_DIR_URL="https://${NEXTCLOUD_DOMAIN}/remote.php/dav/files/$NEXTCLOUD_USER/L%27Hebdo%20du%20Geek/"
 
 curl -s -u "$NEXTCLOUD_USER:$NEXTCLOUD_APP_PASSWORD" \
      -X PROPFIND \
@@ -45,5 +45,5 @@ curl -s -u "$NEXTCLOUD_USER:$NEXTCLOUD_APP_PASSWORD" \
       echo "Suppression de l'ancien journal : $decoded_filename"
       curl -s -u "$NEXTCLOUD_USER:$NEXTCLOUD_APP_PASSWORD" \
            -X DELETE \
-           "https://${NEXTCLOUD_DOMAIN}/remote.php/dav/files/$NEXTCLOUD_USER/L%27Hebdo%20du%20Nerd/$filename"
+           "https://${NEXTCLOUD_DOMAIN}/remote.php/dav/files/$NEXTCLOUD_USER/L%27Hebdo%20du%20Geek/$filename"
     done
