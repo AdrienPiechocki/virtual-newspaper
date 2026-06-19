@@ -6,6 +6,10 @@ en un PDF unique mis en page façon journal papier (A3, colonnes, filets, lettri
 ## Installation
 
 ```bash
+git clone https://github.com/AdrienPiechocki/virtual-newspaper.git
+cd virtual-newspaper
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium
 ```
