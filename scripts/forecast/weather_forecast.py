@@ -28,6 +28,8 @@ class OpenMeteoClient:
         "Lyon": {"lat": 45.7640, "lon": 4.8357},
         "Marseille": {"lat": 43.2965, "lon": 5.3698},
         "Ajaccio": {"lat": 41.9267, "lon": 8.7369},
+        "Reims": {"lat": 49.2653, "lon": 4.0285},
+        "Limoges": {"lat": 45.8336, "lon": 1.2476},
     }
 
     def get_national_forecast(self) -> List[Dict]:
