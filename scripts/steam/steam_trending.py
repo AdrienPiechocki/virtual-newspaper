@@ -63,7 +63,7 @@ def parse_args():
         metavar="FILTER",
         help="Steam filters to use")
 
-    parser.add_argument("--pages", type=int, default=3, metavar="N",
+    parser.add_argument("--pages", type=int, default=5, metavar="N",
         help="Number of pages to scrape per filter (50 apps/page)")
 
     parser.add_argument("--upcoming-window-days", type=int, default=30, metavar="N",
