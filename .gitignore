@@ -160,7 +160,6 @@ cython_debug/
 #.idea/
 
 *.csv
-jobs/
-steam_*.json
+*.json
 *.db
 *.pdf
