@@ -105,7 +105,7 @@ def parse_args():
     parser.add_argument("--upcoming-cooldown-days", type=int, default=21, metavar="N",
         help="Days an upcoming game stays hidden after being shown, to surface fresh titles each week (0 = disable)")
 
-    parser.add_argument("--gem-min-reviews", type=int, default=50, metavar="N",
+    parser.add_argument("--gem-min-reviews", type=int, default=1, metavar="N",
         help="Minimum reviews required for a game to qualify as 'hidden gems'")
 
     parser.add_argument("--gem-max-reviews", type=int, default=500, metavar="N",
@@ -488,7 +488,7 @@ def get_steam_tags(appid, conn, cursor, no_cache, pw_page=None):
     except Exception as e:
         print(f"  ❌ Error scraping tags for {appid}: {e}")
 
-    tags = [t.strip() for t in tags if t.strip()]
+    tags = [t.strip().lower().replace(" ", "-") for t in tags if t.strip()]
     tag_list = list(dict.fromkeys(tags))
 
     cursor.execute(
@@ -496,7 +496,6 @@ def get_steam_tags(appid, conn, cursor, no_cache, pw_page=None):
         (appid, json.dumps(tag_list), int(time.time()))
     )
     conn.commit()
-
     return tag_list
 
 
@@ -505,15 +504,6 @@ def tags_match(tags, exclude):
         if t.lower() in tags:
             return False
     return True
-
-
-def tags_display(details):
-    names = sorted({
-        g.get("description", "") for g in details.get("genres", [])
-    } | {
-        c.get("description", "") for c in details.get("categories", [])
-    })
-    return ", ".join(n for n in names if n)
 
 
 # ----------------------------
@@ -1112,7 +1102,7 @@ def main():
                 "release": release.strftime("%Y-%m-%d") if release else "Upcoming",
                 "recommendations": pos,
                 "coming_soon": is_coming_soon,
-                "tags": tags_display(details),
+                "tags": ", ".join(tags).replace("-", " ").upper(),
                 "description": clean_desc,
                 "price": price,
                 "header": header_img,
