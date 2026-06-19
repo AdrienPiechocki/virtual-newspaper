@@ -90,9 +90,6 @@ def parse_args():
     parser.add_argument("--quiet", "-q", action="store_true",
         help="Show only the final ranking")
 
-    parser.add_argument("--verbose", "-v", action="store_true",
-        help="Show details for each processed app")
-
     parser.add_argument("--tags-include", nargs="+", metavar="TAG", default=[],
         help="Include only games that have ALL of these tags")
 
@@ -1070,7 +1067,7 @@ def main():
             # Filtre anti-répétition : un jeu upcoming déjà mis en avant récemment
             # est masqué pour laisser la place à de nouveaux titres.
             if is_coming_soon and appid in recently_shown_upcoming:
-                if args.verbose:
+                if not args.quiet:
                     print(f"  ⏭️  {name} — déjà montré récemment (cooldown upcoming)")
                 continue
 
@@ -1087,8 +1084,8 @@ def main():
 
             if args.tags_exclude:
                 if not tags_match(tags, args.tags_exclude):
-                    if args.verbose:
-                        print(f"  ✗ {name} — excluded tags")
+                    if not args.quiet:
+                        print(f"  ❌ {name} — excluded tags")
                     continue
 
             # Directly get raw description
@@ -1134,7 +1131,7 @@ def main():
                     entry["appid"] = parent_appid
 
                 demos.append(entry)
-                if args.verbose:
+                if not args.quiet:
                     print(f"  🔜 {entry['name']} (demo)")
 
             elif is_coming_soon:
@@ -1153,12 +1150,12 @@ def main():
                 entry["topseller_rank"]  = rankings["topsellers"].get(appid, 999999)
 
                 upcoming.append(entry)
-                if args.verbose:
+                if not args.quiet:
                     print(f"  🔜 {name} (presale={entry['score']} — {entry['presale_breakdown']})")
             else:
                 ref_date = release if release else datetime.now()
                 entry["score"] = round(released_score(pos, neg, ref_date), 2)
-                if args.verbose:
+                if not args.quiet:
                     print(f"  ✓ {name} (score={entry['score']}, reviews={pos})")
 
                 if is_potential_gem and is_gem(
@@ -1167,15 +1164,15 @@ def main():
                     args.gem_min_positive_ratio
                 ):
                     entry["is_gem"] = True
-                    if args.verbose:
+                    if not args.quiet:
                         print(f"  💎 {name} (pépite)")
                 released.append(entry)
 
             if discount > 0:
                 entry["discount"] = discount
                 sales.append(entry)
-                if args.verbose:
-                    print(f"  ✓ {name} (sales)")
+                if not args.quiet:
+                    print(f"  ✅ {name} (sales)")
 
     # ----------------------------
     # CLASSEMENT
