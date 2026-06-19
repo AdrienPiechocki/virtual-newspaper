@@ -114,6 +114,9 @@ def parse_args():
     parser.add_argument("--gem-min-positive-ratio", type=float, default=0.90, metavar="RATIO",
         help="Minimum positive review ratio (0-1) required for a game to qualify as 'hidden gems'")
 
+    parser.add_argument("--cache-max-age-days", type=int, default=21, metavar="N",
+        help="Purge les entrées de app_cache/review_cache plus vieilles que N jours au lancement (0 = désactiver)")
+
     return parser.parse_args()
 
 
@@ -141,7 +144,8 @@ def init_db(db_path, clear=False):
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS upcoming_shown_history (
             appid TEXT PRIMARY KEY,
-            shown_at INTEGER
+            shown_at INTEGER,
+            timestamp INTEGER
         )
     """)
     # Cache du détail positif/négatif des reviews (non fourni par appdetails)
@@ -156,9 +160,18 @@ def init_db(db_path, clear=False):
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tags_cache (
             appid TEXT PRIMARY KEY,
-            tags TEXT
+            tags TEXT,
+            timestamp INTEGER
         )
     """)
+
+    # Migration : ajoute la colonne timestamp si la DB existait déjà sans elle
+    for table in ("tags_cache", "upcoming_shown_history"):
+        cursor.execute(f"PRAGMA table_info({table})")
+        existing_cols = {row[1] for row in cursor.fetchall()}
+        if "timestamp" not in existing_cols:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN timestamp INTEGER")
+
     conn.commit()
     return conn, cursor
 
@@ -179,8 +192,8 @@ def mark_upcoming_shown(conn, cursor, appids):
     """Enregistre les jeux upcoming venant d'être affichés dans cette run."""
     now = int(time.time())
     cursor.executemany(
-        "REPLACE INTO upcoming_shown_history VALUES (?, ?)",
-        [(appid, now) for appid in appids]
+        "REPLACE INTO upcoming_shown_history (appid, shown_at, timestamp) VALUES (?, ?, ?)",
+        [(appid, now, now) for appid in appids]
     )
     conn.commit()
 
@@ -193,6 +206,19 @@ def prune_upcoming_history(conn, cursor, max_age_days=180):
         (cutoff_ts,)
     )
     conn.commit()
+
+
+def prune_old_cache(conn, cursor, max_age_days=21):
+    """Supprime les entrées de app_cache, review_cache et tags_cache plus vieilles que max_age_days."""
+    cutoff_ts = int(time.time()) - max_age_days * 86400
+    cursor.execute("DELETE FROM app_cache WHERE timestamp < ?", (cutoff_ts,))
+    deleted_app = cursor.rowcount
+    cursor.execute("DELETE FROM review_cache WHERE timestamp < ?", (cutoff_ts,))
+    deleted_review = cursor.rowcount
+    cursor.execute("DELETE FROM tags_cache WHERE timestamp IS NOT NULL AND timestamp < ?", (cutoff_ts,))
+    deleted_tags = cursor.rowcount
+    conn.commit()
+    return deleted_app, deleted_review, deleted_tags
 
 
 def cache_get(cursor, appid, no_cache=False):
@@ -435,7 +461,10 @@ def get_steam_tags(appid, conn, cursor, no_cache, pw_page=None):
                 tags = pw_page.locator("a.app_tag").all_text_contents()
             except Exception:
                 tags = ["hentai", "adult-content", "nudity", "sexual-content"]
-                cursor.execute("REPLACE INTO tags_cache VALUES (?, ?)", (appid, json.dumps(tags)))
+                cursor.execute(
+                    "REPLACE INTO tags_cache (appid, tags, timestamp) VALUES (?, ?, ?)",
+                    (appid, json.dumps(tags), int(time.time()))
+                )
                 conn.commit()
                 return tags
         else:
@@ -449,7 +478,10 @@ def get_steam_tags(appid, conn, cursor, no_cache, pw_page=None):
                     tags = page.locator("a.app_tag").all_text_contents()
                 except Exception:
                     tags = ["hentai", "adult-content", "nudity", "sexual-content"]
-                    cursor.execute("REPLACE INTO tags_cache VALUES (?, ?)", (appid, json.dumps(tags)))
+                    cursor.execute(
+                        "REPLACE INTO tags_cache (appid, tags, timestamp) VALUES (?, ?, ?)",
+                        (appid, json.dumps(tags), int(time.time()))
+                    )
                     conn.commit()
                     return tags
                 browser.close()
@@ -459,7 +491,10 @@ def get_steam_tags(appid, conn, cursor, no_cache, pw_page=None):
     tags = [t.strip() for t in tags if t.strip()]
     tag_list = list(dict.fromkeys(tags))
 
-    cursor.execute("REPLACE INTO tags_cache VALUES (?, ?)", (appid, json.dumps(tag_list)))
+    cursor.execute(
+        "REPLACE INTO tags_cache (appid, tags, timestamp) VALUES (?, ?, ?)",
+        (appid, json.dumps(tag_list), int(time.time()))
+    )
     conn.commit()
 
     return tag_list
@@ -903,6 +938,11 @@ def main():
     conn, cursor = init_db(args.db, clear=args.clear_cache)
     if args.clear_cache and not args.quiet:
         print("🗑️  Cache cleaned\n")
+
+    if args.cache_max_age_days > 0:
+        deleted_app, deleted_review, deleted_tags = prune_old_cache(conn, cursor, args.cache_max_age_days)
+        if not args.quiet and (deleted_app or deleted_review or deleted_tags):
+            print(f"🧹 Cache purgé (> {args.cache_max_age_days}j) : {deleted_app} app_cache, {deleted_review} review_cache, {deleted_tags} tags_cache\n")
 
     if not args.quiet:
         print("🔍 Collecting AppIDs...")
