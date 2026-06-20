@@ -1055,6 +1055,7 @@ def main():
             discount = price_overview.get("discount_percent", 0)
             price = price_overview.get("final_formatted", "")
             release = parse_release_date(details.get("release_date", {}).get("date", ""))
+            date_format = "%Y-%m-%d" if release and len(details.get("release_date", {}).get("date", "")) > 4 and ("," in details.get("release_date", {}).get("date", "") or "." in details.get("release_date", {}).get("date", "")) else "%Y"
             is_coming_soon = (
                 details.get("release_date", {}).get("coming_soon", False)
                 or appid in steamdb_ranks
@@ -1112,7 +1113,7 @@ def main():
             entry = {
                 "name": name,
                 "appid": appid,
-                "release": release.strftime("%Y-%m-%d") if release else "Upcoming",
+                "release": release.strftime(date_format) if release else "Upcoming",
                 "recommendations": pos,
                 "coming_soon": is_coming_soon,
                 "tags": ", ".join(tags).replace("-", " ").upper(),
