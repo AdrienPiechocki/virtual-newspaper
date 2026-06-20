@@ -713,7 +713,7 @@ STEAMDB_MOSTWISHED_URL = "https://steamdb.info/stats/mostwished/"
 
 def _build_steamdb_url(min_release: str | None, max_release: str | None) -> str:
     from urllib.parse import urlencode
-    params = {"displayOnly": "Game", "upcoming_only": "1"}
+    params = {"displayOnly": "Game", "upcoming_only": "1", "sort": "id_asc", "tagid": "-12095%2C-65443%2C-6650%2C-9130"}
     if min_release:
         params["min_release"] = min_release
     if max_release:
@@ -780,6 +780,22 @@ def scrape_steamdb_mostwished(
                 page.wait_for_selector("tr.app[data-appid]", timeout=5000)
             except Exception:
                 pass
+
+            # Passer le nombre d'entrées par page à 250 (défaut DataTables = 100)
+            try:
+                length_select = page.locator("select#dt-length-0, select[aria-controls^='DataTables_Table_']").first
+                length_select.wait_for(state="visible", timeout=3000)
+                length_select.select_option("250")
+                # Attendre que le tableau se recharge avec les nouvelles lignes
+                page.wait_for_function(
+                    "document.querySelectorAll('tr.app[data-appid]').length > 100",
+                    timeout=10000,
+                )
+                page.wait_for_timeout(300)
+            except Exception as e:
+                if not quiet:
+                    print(f"  ⚠️  Impossible de passer à 250 entrées/page ({e}) — on garde le défaut")
+
             html_content = page.content()
             browser.close()
     except Exception as e:
@@ -952,8 +968,8 @@ def main():
     today = datetime.now().strftime("%Y-%m-%d")
     max_release = (datetime.now() + timedelta(days=args.upcoming_window_days)).strftime("%Y-%m-%d")
     steamdb_ranks = scrape_steamdb_mostwished(
-        min_release=today,
-        max_release=max_release,
+        # min_release=today,
+        # max_release=max_release,
         quiet=args.quiet,
     )
     # Ajouter les appids SteamDB au pool s'ils n'y sont pas déjà
