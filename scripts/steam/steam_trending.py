@@ -1123,17 +1123,21 @@ def main():
                 or appid in steamdb_ranks
             )
 
-            if is_sale_active:
+            if details.get("type") == "demo":
+                pass
+            elif is_coming_soon:
+                # Les jeux upcoming/démos suivent leur propre logique de
+                # cutoff, indépendamment de l'état des sales : une sale
+                # active ne doit pas les filtrer sur un critère de remise
+                # qu'ils n'ont presque jamais (pré-commande, pas de promo).
+                if release and release < cutoff:
+                    continue
+            elif is_sale_active:
                 if discount <= 0:
                     continue
                 # Pendant une sale active, un jeu en promo garde sa place
                 # même s'il est sorti avant le cutoff habituel : on ignore
                 # volontairement le filtre de date de sortie pour ces jeux.
-            elif details.get("type") == "demo":
-                pass
-            elif is_coming_soon:
-                if release and release < cutoff:
-                    continue
             elif release and release < cutoff:
                 continue
             elif details.get("type") != "demo" and details.get("type") != "game":
