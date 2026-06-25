@@ -1126,14 +1126,16 @@ def main():
             if is_sale_active:
                 if discount <= 0:
                     continue
-
-            if details.get("type") == "demo":
+                # Pendant une sale active, un jeu en promo garde sa place
+                # même s'il est sorti avant le cutoff habituel : on ignore
+                # volontairement le filtre de date de sortie pour ces jeux.
+            elif details.get("type") == "demo":
                 pass
             elif is_coming_soon:
                 if release and release < cutoff:
                     continue
             elif release and release < cutoff:
-                    continue
+                continue
             elif details.get("type") != "demo" and details.get("type") != "game":
                 continue
 
@@ -1258,6 +1260,7 @@ def main():
     # ----------------------------
     released.sort(key=lambda x: x["score"], reverse=True)
     upcoming.sort(key=upcoming_sort_key)
+    sales.sort(key=lambda x: x["discount"], reverse=True)
 
     top_released = released[:args.top]
     top_upcoming = upcoming[:args.top_upcoming]
