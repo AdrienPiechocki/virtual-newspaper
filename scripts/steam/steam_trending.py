@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import math
 import time
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import random
 import sqlite3
 import html
@@ -20,6 +21,12 @@ STEAM_APP_DETAILS = "https://store.steampowered.com/api/appdetails"
 STEAM_EVENTS = "https://partner.steamgames.com/doc/marketing/upcoming_events"
 STEAM_DEMOS = "https://store.steampowered.com/sale/nextfest?tab=23&flavor=trendingwishlisted"
 
+# Les events Steam démarrent en réalité à 10h00 PDT/PST, ce qui correspond
+# à 19h00 heure de Paris (le décalage horaire Europe/US suit le même rythme
+# de changement d'heure été/hiver, donc ça reste vrai toute l'année).
+PARIS_TZ = ZoneInfo("Europe/Paris")
+EVENT_START_HOUR_PARIS = 19
+
 EVENT_KEYWORDS = {
     "next fest": "Next Fest",
     "spring sale": "Spring Sale",
@@ -29,10 +36,14 @@ EVENT_KEYWORDS = {
     "winter sale": "Winter Sale",
 }
 
-MONTHS = r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+MONTHS = r"(?:January|February|March|April|May|June|July|August|September|October|November|December)"
 
+# Gère aussi le format abrégé "March 19 - 26, 2026" (même mois, pas répété
+# pour la date de fin) en plus de "June 25 - July 9, 2026".
 date_pattern = re.compile(
-    rf"({MONTHS}\s+\d{{1,2}}(?:,\s*\d{{4}})?)\s*[-–]\s*({MONTHS}\s+\d{{1,2}},\s*\d{{4}})"
+    rf"(?P<start_month>{MONTHS})\s+(?P<start_day>\d{{1,2}})(?:,\s*(?P<start_year>\d{{4}}))?"
+    rf"\s*[-–]\s*"
+    rf"(?:(?P<end_month>{MONTHS})\s+)?(?P<end_day>\d{{1,2}}),\s*(?P<end_year>\d{{4}})"
 )
 
 # ----------------------------
@@ -373,34 +384,75 @@ def extract_events(html):
     soup = BeautifulSoup(html, "html.parser")
 
     events = []
+    seen_blocks = set()
 
     # On cherche des blocs logiques (titres + contenu proche)
     for element in soup.find_all(["h2", "h3", "strong", "p", "li"]):
-        text = element.get_text(" ", strip=True).lower()
+        text = element.get_text(" ", strip=True)
+        text_lower = text.lower()
 
         event_name = None
         for key, name in EVENT_KEYWORDS.items():
-            if key in text:
+            if key in text_lower:
                 event_name = name
                 break
 
         if not event_name:
             continue
 
-        # On regarde le texte proche (parent container)
-        container_text = element.parent.get_text(" ", strip=True)
+        # On cherche la date dans le texte de l'élément lui-même en priorité.
+        # IMPORTANT : on ne remonte JAMAIS au parent, car plusieurs events
+        # (ex: les 4 sales saisonnières, ou les 3 éditions de Next Fest)
+        # partagent souvent le même conteneur parent. Chercher dans ce texte
+        # concaténé fait remonter le premier match trouvé dans tout le bloc,
+        # peu importe quel event a déclenché la détection — ce qui colle les
+        # mêmes dates (et donc le même statut actif/inactif) à tous les
+        # events du bloc.
+        match = date_pattern.search(text)
+        search_text = text
 
-        match = date_pattern.search(container_text)
+        if not match:
+            # Repli minimal : le nom et les dates sont parfois sur deux
+            # lignes séparées (ex: titre puis paragraphe). On regarde
+            # uniquement le frère direct suivant, jamais plus large.
+            sibling = element.find_next_sibling()
+            if sibling:
+                sibling_text = sibling.get_text(" ", strip=True)
+                m = date_pattern.search(sibling_text)
+                if m:
+                    match = m
+                    search_text = sibling_text
+
         if not match:
             continue
 
-        start_raw, end_raw = match.group(1), match.group(3)
+        # Dédoublonnage : un même bloc texte (ex: h2 contenant un <strong>)
+        # peut être vu deux fois via des éléments différents.
+        block_key = (event_name, search_text)
+        if block_key in seen_blocks:
+            continue
+        seen_blocks.add(block_key)
 
-        # année fallback (Steam met souvent l'année dans la fin)
-        year_match = re.search(r"\d{4}", end_raw)
-        year = int(year_match.group()) if year_match else None
+        start_month = match.group("start_month")
+        start_day = match.group("start_day")
+        start_year = match.group("start_year")
+        end_month = match.group("end_month") or start_month
+        end_day = match.group("end_day")
+        end_year = match.group("end_year")
 
-        start = parse_event_date(start_raw, year)
+        if not start_year:
+            # Cas où l'event traverse le nouvel an (ex: "December 17 -
+            # January 4, 2027") : la date de début appartient à l'année
+            # PRÉCÉDENTE par rapport à end_year, pas à end_year lui-même.
+            month_order = ["January", "February", "March", "April", "May", "June",
+                            "July", "August", "September", "October", "November", "December"]
+            crosses_new_year = month_order.index(start_month) > month_order.index(end_month)
+            start_year = str(int(end_year) - 1) if crosses_new_year else end_year
+
+        start_raw = f"{start_month} {start_day}, {start_year}"
+        end_raw = f"{end_month} {end_day}, {end_year}"
+
+        start = parse_event_date(start_raw)
         end = parse_event_date(end_raw)
 
         if start and end:
@@ -426,10 +478,20 @@ def get_active_events(headers):
     active = []
     seen = set()
     for name, start, end in events:
+        # `start` est parsé à minuit (00:00 UTC) par parse_event_date, mais
+        # les events Steam démarrent réellement à 10h00 PDT/PST, soit 19h00
+        # heure de Paris. On recale le début sur cette heure-là plutôt que
+        # minuit pour éviter de considérer un event comme actif plusieurs
+        # heures avant son lancement réel.
+        start_paris = start.astimezone(PARIS_TZ).replace(
+            hour=EVENT_START_HOUR_PARIS, minute=0, second=0, microsecond=0
+        )
+        start_actual = start_paris.astimezone(timezone.utc)
+
         # `end` est parsé à minuit (00:00) ; on inclut tout le dernier jour
         # de l'event en comparant à la fin de journée plutôt qu'à minuit.
         end_of_day = end.replace(hour=23, minute=59, second=59)
-        if start <= now <= end_of_day and name not in seen:
+        if start_actual <= now <= end_of_day and name not in seen:
             active.append(name)
             seen.add(name)
 
