@@ -113,6 +113,28 @@
         {% endfor %}
     </div>
     {% endif %}
+
+    {% if steam_games.sales %}
+    <h3 class="steam-subtitle">Soldes Steam !</h3>
+    <div class="game-grid game-grid-compact">
+        {% for g in steam_games.sales %}
+        <div class="game-card game-card-compact">
+            <div class="game-cover game-cover-compact">
+                <a href="https://store.steampowered.com/app/{{ g.appid }}">
+                    <img src="{{ g.header }}" alt="{{ g.name }}">
+                </a>
+            </div>
+            <div class="game-card-body">
+                <div class="game-entry-header">
+                    <a class="game-name" href="https://store.steampowered.com/app/{{ g.appid }}">{{ g.name }}</a>
+                    {% if g.price %}<span class="game-price">{{ g.price }}</span>{% endif %}
+                </div>
+                <div class="game-desc">{{ g.description | truncate_words(20) }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 </section>
 <div class="rule-thin"></div>
 {% endif %}

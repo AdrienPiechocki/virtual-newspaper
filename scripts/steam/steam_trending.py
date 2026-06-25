@@ -1234,20 +1234,28 @@ def main():
                 if not args.quiet:
                     print(f"  🔜 {name} (presale={entry['score']} — {entry['presale_breakdown']})")
             else:
-                ref_date = release if release else datetime.now()
-                entry["score"] = round(released_score(pos, neg, ref_date), 2)
-                if not args.quiet:
-                    print(f"  ✅ {name} (score={entry['score']}, reviews={pos})")
-
-                if is_potential_gem and is_gem(
-                    pos, neg,
-                    args.gem_min_reviews, args.gem_max_reviews,
-                    args.gem_min_positive_ratio
-                ):
-                    entry["is_gem"] = True
+                if release and release < cutoff:
+                    # Le jeu est sorti avant le cutoff : pendant une sale
+                    # active on l'a laissé passer pour la liste "sales",
+                    # mais il ne doit PAS apparaître dans le classement
+                    # hebdomadaire des jeux récents.
                     if not args.quiet:
-                        print(f"  💎 {name} (pépite)")
-                released.append(entry)
+                        print(f"  💸 {name} — trop ancien pour le classement hebdo, garde uniquement pour les sales")
+                else:
+                    ref_date = release if release else datetime.now()
+                    entry["score"] = round(released_score(pos, neg, ref_date), 2)
+                    if not args.quiet:
+                        print(f"  ✅ {name} (score={entry['score']}, reviews={pos})")
+
+                    if is_potential_gem and is_gem(
+                        pos, neg,
+                        args.gem_min_reviews, args.gem_max_reviews,
+                        args.gem_min_positive_ratio
+                    ):
+                        entry["is_gem"] = True
+                        if not args.quiet:
+                            print(f"  💎 {name} (pépite)")
+                    released.append(entry)
 
             if discount > 0:
                 entry["discount"] = discount
@@ -1264,6 +1272,7 @@ def main():
 
     top_released = released[:args.top]
     top_upcoming = upcoming[:args.top_upcoming]
+    top_sales = sales[:args.top]
 
     # On marque les upcoming affichés cette semaine pour les masquer
     # pendant la période de cooldown (évite de revoir les mêmes têtes
@@ -1290,8 +1299,8 @@ def main():
     else:
         print("\n  (No game demos found)\n")
     
-    if sales:
-        print_section("💸 SALES", sales, args.quiet)
+    if top_sales:
+        print_section("💸 SALES", top_sales, args.quiet)
     else:
         print("\n  (No game sales found)\n")
 
@@ -1304,7 +1313,7 @@ def main():
             [{**g, "section": "released"} for g in top_released] +
             [{**g, "section": "upcoming"} for g in top_upcoming] +
             [{**g, "section": "demos"} for g in demos] +
-            [{**g, "section": "sales"} for g in sales]
+            [{**g, "section": "sales"} for g in top_sales]
         )
         fieldnames = ["section", "name", "appid", "release", "score",
                       "recommendations", "positive_ratio", "coming_soon", "tags", "description", "price", "header", "is_gem"]
