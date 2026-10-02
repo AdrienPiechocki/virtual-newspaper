@@ -10,7 +10,7 @@ search:
     - "Développeur Jeux Vidéo"
 
   # Localisation
-  location: "Ile de France, France"
+  location: "France"
 
   # Nombre max d'offres à scraper par recherche
   max_jobs_per_keyword: 10
@@ -43,7 +43,6 @@ exclude_keywords:
 required_skills:
   - "Python"
   - "Linux"
-  - "Bash"
 
 # Compétences bonus (augmentent le score)
 bonus_skills:
@@ -56,6 +55,8 @@ bonus_skills:
   - "QML"
   - "JavaScript"
   - "C#"
+  - "Santé"
+  - "Bash"
 
 # Sortie
 output:
