@@ -675,36 +675,73 @@ def get_review_breakdown(appid, conn, cursor, no_cache):
         if row:
             return row[0], row[1]
 
-    # 2. Appel API (on demande 0 review, juste le query_summary)
-    url = f"https://store.steampowered.com/appreviews/{appid}"
+    # 2. Appel API (endpoint ajaxappreviews — l'ancien /appreviews/{appid}?json=1
+    #    redirige désormais vers la page d'accueil et ne renvoie plus de JSON).
+    url = f"https://store.steampowered.com/ajaxappreviews/{appid}"
     params = {
-        "json": 1, 
-        "language": "all", 
-        "num_per_page": 0,
-        "filter_offtopic_activity": 1 # Filtre le review bombing
+        "filter": "summary",
+        "date_range_type": "all",
+        "cursor": "*",
+        "filter_offtopic_activity": 1,  # Filtre le review bombing
+        "review_type": "all",
+        "purchase_type": "all",
+        "language": "all",
     }
-    
-    try:
-        r = requests.get(url, params=params, timeout=10)
-        data = r.json()
-        
-        if data.get("success") == 1:
-            summary = data.get("query_summary", {})
-            
-            # CORRECTION : Enlever la virgule à la fin
-            pos = summary.get("total_positive", 0) 
-            neg = summary.get("total_negative", 0)
-            
-            # Mise en cache
-            cursor.execute(
-                "REPLACE INTO review_cache VALUES (?, ?, ?, ?)",
-                (appid, pos, neg, int(time.time())) # Stocker des entiers directement
-            )
-            conn.commit()
-            return pos, neg
-    except Exception as e:
-        print(f"  ⚠️ Erreur API reviews pour {appid}: {e}")
-        
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": f"https://store.steampowered.com/app/{appid}/",
+    }
+
+    for attempt in range(4):
+        try:
+            r = requests.get(url, params=params, headers=headers, timeout=10)
+            if r.status_code in (429, 403, 503):
+                time.sleep((2 ** attempt) + random.uniform(1, 3))
+                continue
+            if r.status_code != 200:
+                print(f"  ⚠️ Erreur API reviews pour {appid}: HTTP {r.status_code}")
+                return 0, 0
+            # Steam renvoie parfois une page HTML (redirection/consentement) :
+            # on tente de parser en JSON, sinon on réessaie.
+            try:
+                data = r.json()
+            except ValueError:
+                time.sleep((2 ** attempt) + random.uniform(1, 3))
+                continue
+            if not isinstance(data, dict):
+                time.sleep((2 ** attempt) + random.uniform(1, 3))
+                continue
+
+            if data.get("success") == 1:
+                summary = data.get("query_summary", {}) or {}
+
+                pos = int(summary.get("total_positive", 0) or 0)
+                neg = int(summary.get("total_negative", 0) or 0)
+
+                # Mise en cache
+                cursor.execute(
+                    "REPLACE INTO review_cache VALUES (?, ?, ?, ?)",
+                    (appid, pos, neg, int(time.time()))
+                )
+                conn.commit()
+                # Petite pause pour ne pas marteler l'API Steam
+                time.sleep(random.uniform(0.3, 0.7))
+                return pos, neg
+
+            # success != 1 : on réessaie une fois puis on abandonne
+            if attempt < 3:
+                time.sleep((2 ** attempt) + random.uniform(1, 3))
+                continue
+            print(f"  ⚠️ Erreur API reviews pour {appid}: success={data.get('success')}")
+            return 0, 0
+        except Exception as e:
+            if attempt < 3:
+                time.sleep(2)
+                continue
+            print(f"  ⚠️ Erreur API reviews pour {appid}: {e}")
+
     return 0, 0
 
 
